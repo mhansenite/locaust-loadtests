@@ -1,0 +1,1877 @@
+from locust import task, run_single_user
+from locust import FastHttpUser
+import sys
+
+class arches_guidecx_com_Archive__25_07_17_12_43_00_(FastHttpUser):
+    host = "https://app.guidecx.com"
+    default_headers = {
+        "Accept-Language": "en-US,en;q=0.5",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:140.0) Gecko/20100101 Firefox/140.0",
+    }
+
+    def get_auth_header(self):
+        """
+        Get the authorization header for API calls
+        Returns the captured token or a fallback if not available
+        """
+        if self.auth_token:
+            return self.auth_token
+        else:
+            # Fallback to hardcoded token if capture failed
+            return "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZhZjQ0NDJkLTRkZGYtNGE0ZS1hNmQzLTVhY2NlZTMxMmEzNCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhdXRoLmd1aWRlY3guY29tIiwic3ViIjoiMzhiOTY4N2UtNWVlNy00MTgwLWE1NjgtYmRkYTBmZGYxZTE0IiwiYXVkIjpbIjFiM2U3MWYyLWUxNGMtNGY0NC1hMWM1LTNkYzg4ZDM5NTJiNSIsImd1aWRlY3guY29tIl0sImV4cCI6MTc1Mjc3ODY2NywiaWF0IjoxNzUyNzc3NzY3LCJqdGkiOiI4MGU0YmQxNy0zMGM3LTQ5OTQtYmFjMy01NDcyYWRhMThkMDQiLCJ2ZXJzaW9uIjoiVjIiLCJyb2xlIjoiQURNSU4iLCJ2aWV3TWVtYmVySWQiOiIzOGI5Njg3ZS01ZWU3LTQxODAtYTU2OC1iZGRhMGZkZjFlMTQifQ.LeJbXeqLrMj9uc5a5M8nOOcoHIN6EPa8YHk9GzWmJRCYzs7vBVJVsPgFoUahWTyL42KXQgay6m01oOTqxegWk4WHVhG81BI2aNBjbpO8EPy_ZotKtKhiF9TQwaDtmI_-z5nvxMn_-V-FrZgQBuK8kW2M2uFcBp9mixWLWcipimh9SQBEdJy6quCu3dvWM4d9LNLvFe6aQCbx8Bt-F3V1v6_ihDn5-jQnWGS1supK2szIu93VJuuxgFxHHOyB76RhZ7zy_8sWmpi9dZmV_A8XgDz2v5fwqeZXCIIeO8GnvpouW9dTBfDpenyc7aZJS34il-d5yKyp5rbgZsIrhzVPdQ"
+
+    def on_start(self):
+        """
+        Called when a user starts - cookies will be automatically managed
+        by the underlying requests.Session for all subsequent requests
+        
+        This will run the entire test scenario once and then stop.
+        """
+        # Optional: Set any initial cookies if needed
+        # self.client.cookies.set('_gcx.theme', 'default', domain='app.guidecx.com')
+        
+        # The first request will capture any Set-Cookie headers automatically
+        # No need to manually manage cookies after this point
+        
+        # Initialize authorization token
+        self.auth_token = None
+        
+        # Execute the login flow once
+        with self.client.request(
+            "GET",
+            "/",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Priority": "u=0, i",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True, debug_stream=sys.stderr
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/projects",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Priority": "u=0, i",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/auth/logout?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Priority": "u=0, i",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Priority": "u=0, i",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/webpack-42a3a4363613bae3.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/618f8807-111b1fb9b7fc3166.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/68832168-744a1c23b1f3f2f2.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/832-6049e24c940d8c55.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/main-app-287c8ec82a6b9271.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/de2117cc-47c4f2c0107c3d14.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/8008-522cd7ee3512d535.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/4594-a61f44a864072dc7.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/4953-e8dc574999376bd3.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/8214-b5e8ce4b474a1f0e.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/app/layout-1844c84315e81667.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/7498-7e4a30ffdefb8f8f.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/app/error-df9ba9cbcd9f33bf.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/app/global-error-7740bec360706bca.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/03dee6567a5e/6130f48717bd/launch-66620ce982df.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "Referer": "https://app.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/349-7881dcd5a485e4a7.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "/_next/static/chunks/app/(public)/auth/login/%5B%5B...slug%5D%5D/page-156a5ac67a48193c.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"dfdd9e1f988805f0c2fbb10cd6b8f034:1663863409.614694"',
+                "Referer": "https://app.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement_Module_ActivityMap.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"b89fcb8870ac40eecb6d3cc844d35389:1663863409.92483"',
+                "Referer": "https://app.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+            headers={
+                "Accept": "text/x-component",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1127",
+                "Content-Type": "multipart/form-data; boundary=----geckoformboundarydf70c242556fd126d4918254d6dcd1eb",
+                "Host": "app.guidecx.com",
+                "Next-Action": "8c6d4f21e8485b281b4224a2beffc1e5a4db53ad",
+                "Next-Router-State-Tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22(public)%22%2C%7B%22children%22%3A%5B%22auth%22%2C%7B%22children%22%3A%5B%22login%22%2C%7B%22children%22%3A%5B%5B%22slug%22%2C%22%22%2C%22oc%22%5D%2C%7B%22children%22%3A%5B%22__PAGE__%3F%7B%5C%22redirect-to%5C%22%3A%5C%22%2Fprojects%2F%3Fhost%3Dapp.guidecx.com%5C%22%7D%22%2C%7B%7D%2C%22%2Fauth%2Flogin%3Fredirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+                "Origin": "https://app.guidecx.com",
+                "Priority": "u=0",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            data='------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_$ACTION_REF_1"\r\n\r\n\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_$ACTION_1:0"\r\n\r\n{"id":"8c6d4f21e8485b281b4224a2beffc1e5a4db53ad","bound":"$@1"}\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_$ACTION_1:1"\r\n\r\n[{"errors":[]}]\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_$ACTION_KEY"\r\n\r\nk3939455420\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_email"\r\n\r\nmhansen+arches@guidecx.com\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_password"\r\n\r\n\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="1_redirect-to"\r\n\r\n/projects/?host=app.guidecx.com\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb\r\nContent-Disposition: form-data; name="0"\r\n\r\n[{"errors":[]},"$K1"]\r\n------geckoformboundarydf70c242556fd126d4918254d6dcd1eb--\r\n',
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Priority": "u=0, i",
+                "Referer": "https://app.guidecx.com/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/webpack-42a3a4363613bae3.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/618f8807-111b1fb9b7fc3166.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/68832168-744a1c23b1f3f2f2.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/832-6049e24c940d8c55.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/main-app-287c8ec82a6b9271.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/de2117cc-47c4f2c0107c3d14.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/8008-522cd7ee3512d535.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/4594-a61f44a864072dc7.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/4953-e8dc574999376bd3.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/8214-b5e8ce4b474a1f0e.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/app/layout-1844c84315e81667.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/7498-7e4a30ffdefb8f8f.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/app/error-df9ba9cbcd9f33bf.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/app/global-error-7740bec360706bca.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/03dee6567a5e/6130f48717bd/launch-66620ce982df.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/349-7881dcd5a485e4a7.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/_next/static/chunks/app/(public)/auth/basic/page-d7c4c610fe1fd064.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"dfdd9e1f988805f0c2fbb10cd6b8f034:1663863409.614694"',
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement_Module_ActivityMap.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"b89fcb8870ac40eecb6d3cc844d35389:1663863409.92483"',
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+            headers={
+                "Accept": "text/x-component",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1141",
+                "Content-Type": "multipart/form-data; boundary=----geckoformboundarya093a9eb85f465aa8e949961f6cca502",
+                "Host": "arches.guidecx.com",
+                "Next-Action": "8eb8615ae699a6509d67a8c34e8000498fd7ad94",
+                "Next-Router-State-Tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22(public)%22%2C%7B%22children%22%3A%5B%22auth%22%2C%7B%22children%22%3A%5B%22basic%22%2C%7B%22children%22%3A%5B%22__PAGE__%3F%7B%5C%22current-user-email%5C%22%3A%5C%22mhansen%2Barches%40guidecx.com%5C%22%2C%5C%22redirect-to%5C%22%3A%5C%22%2Fprojects%2F%3Fhost%3Dapp.guidecx.com%5C%22%7D%22%2C%7B%7D%2C%22%2Fauth%2Fbasic%3Fcurrent-user-email%3Dmhansen%252Barches%2540guidecx.com%26redirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=0",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            data='------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_$ACTION_REF_1"\r\n\r\n\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_$ACTION_1:0"\r\n\r\n{"id":"8eb8615ae699a6509d67a8c34e8000498fd7ad94","bound":"$@1"}\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_$ACTION_1:1"\r\n\r\n[{"errors":[]}]\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_$ACTION_KEY"\r\n\r\nk1194475227\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_email"\r\n\r\nmhansen+arches@guidecx.com\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_redirect-to"\r\n\r\n/projects/?host=app.guidecx.com\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="1_password"\r\n\r\nCTc5LUpu^G9Xf$\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502\r\nContent-Disposition: form-data; name="0"\r\n\r\n[{"errors":[]},"$K1"]\r\n------geckoformboundarya093a9eb85f465aa8e949961f6cca502--\r\n',
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/?host=app.guidecx.com",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Priority": "u=0, i",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects?host=app.guidecx.com",
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Priority": "u=0, i",
+                "Referer": "https://arches.guidecx.com/auth/basic?current-user-email=mhansen%2Barches%40guidecx.com&redirect-to=%2Fprojects%2F%3Fhost%3Dapp.guidecx.com",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/03dee6567a5e/6130f48717bd/launch-66620ce982df.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/webpack-f14d5c7aaf463056.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/framework-97a3c2b9bdeaabd8.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/main-b5b86fa6fecd1135.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/pages/_app-0217f5b6ad750565.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/0705a38a-8b4d21c396d451a0.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/e464b6d8-0e08259ee8f8c3ca.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/9cec4335-41051ba1fb00864d.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/894-9b13920a93f502c4.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/228-cd8447f62a1e7e4d.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/136-d0b6b89a3ca61a8f.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/871-a65dbd23c2693154.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/950-5db9c7713efbec43.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/pages/index-83a5c43313ae8d93.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/b4o4PrqH4xz5g6EJd0Pel/_buildManifest.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/b4o4PrqH4xz5g6EJd0Pel/_ssgManifest.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"dfdd9e1f988805f0c2fbb10cd6b8f034:1663863409.614694"',
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://assets.adobedtm.com/extensions/EPbf7b42aa08bc4f10879b1484195e80d1/AppMeasurement_Module_ActivityMap.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "assets.adobedtm.com",
+                "If-Modified-Since": "Thu, 22 Sep 2022 16:16:49 GMT",
+                "If-None-Match": '"b89fcb8870ac40eecb6d3cc844d35389:1663863409.92483"',
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/adobe-client-data-layer.min.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "If-Modified-Since": "Fri, 11 Jul 2025 08:00:13 GMT",
+                "If-None-Match": '"202b230246217e480197669b91c54026"',
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://arches.guidecx.com/projects/_next/static/chunks/921.e86efa41d28765b0.js",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "same-origin",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.rest(
+            "GET",
+            "/auth/session",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+        ) as resp:
+            # Capture the authorization token from the session response
+            if resp.status_code == 200:
+                try:
+                    session_data = resp.json()
+                    if 'access_token' in session_data:
+                        self.auth_token = f"Bearer {session_data['access_token']}"
+                        print(f"✅ Captured authorization token: {self.auth_token[:50]}...")
+                    elif 'token' in session_data:
+                        self.auth_token = f"Bearer {session_data['token']}"
+                        print(f"✅ Captured authorization token: {self.auth_token[:50]}...")
+                    else:
+                        print("⚠️ No token found in session response, checking other fields...")
+                        print(f"Response keys: {list(session_data.keys()) if session_data else 'No JSON data'}")
+                except Exception as e:
+                    print(f"⚠️ Could not parse session response: {e}")
+            else:
+                print(f"⚠️ Session request failed with status: {resp.status_code}")
+        with self.client.request(
+            "GET",
+            "https://sdk.split.io/api/mySegments/1b3e71f2-e14c-4f44-a1c5-3dc88d3952b5",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Authorization": "Bearer akjui47oepo9b5p8kl76gfebihlcj0bme935",
+                "Connection": "keep-alive",
+                "Content-Type": "application/json",
+                "Host": "sdk.split.io",
+                "If-None-Match": '"819801577"',
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "SplitSDKVersion": "react-1.11.1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://sdk.split.io/api/splitChanges?since=-1",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Authorization": "Bearer akjui47oepo9b5p8kl76gfebihlcj0bme935",
+                "Connection": "keep-alive",
+                "Content-Type": "application/json",
+                "Host": "sdk.split.io",
+                "If-Modified-Since": "Wed, 16 Jul 2025 22:40:46 GMT",
+                "If-None-Match": '"1752705646811"',
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "SplitSDKVersion": "react-1.11.1",
+                "TE": "trailers",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?CountNotifications",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "233",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "CountNotifications",
+                "variables": {},
+                "query": "query CountNotifications {\n  notifications: unreadNotificationsCount(types: [SCHEDULE, NOTIFICATION])\n  mentions: unreadNotificationsCount(types: [COMMUNICATION])\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetPendingProjectsSummary",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "200",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetPendingProjectsSummary",
+                "variables": {},
+                "query": "query GetPendingProjectsSummary {\n  pendingProjectsSummary {\n    openApi\n    hubspot\n    salesforce\n    __typename\n  }\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetProjectManagerList",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "700",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetProjectManagerList",
+                "variables": {
+                    "organizationId": "1b3e71f2-e14c-4f44-a1c5-3dc88d3952b5",
+                    "excludeAdmins": False,
+                },
+                "query": "query GetProjectManagerList($organizationId: ID, $excludeAdmins: Boolean) {\n  projectManagers(organizationId: $organizationId, excludeAdmins: $excludeAdmins) {\n    ...ProjectManagerProjectWizard\n    __typename\n  }\n}\n\nfragment ProjectManagerProjectWizard on UserType {\n  avatar {\n    originalUrl\n    __typename\n  }\n  capacity\n  displayOrganization {\n    name\n    __typename\n  }\n  email\n  firstName\n  id\n  jobRole\n  lastName\n  organization {\n    id\n    name\n    __typename\n  }\n  organizationName\n  projectsCount\n  __typename\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?ProjectStatus_OrganizationSettings",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "334",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "ProjectStatus_OrganizationSettings",
+                "variables": {"organizationId": "1b3e71f2-e14c-4f44-a1c5-3dc88d3952b5"},
+                "query": "query ProjectStatus_OrganizationSettings($organizationId: ID!) {\n  organization(id: $organizationId) {\n    setting {\n      useStatusChangeReasons\n      __typename\n    }\n    __typename\n  }\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "wss://api.guidecx.com/subscriptions",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive, Upgrade",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Pragma": "no-cache",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "websocket",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "Sec-WebSocket-Extensions": "permessage-deflate",
+                "Sec-WebSocket-Key": "yjs+gpqI4KsumYoNGxPByQ==",
+                "Sec-WebSocket-Protocol": "actioncable-v1-json, actioncable-unsupported",
+                "Sec-WebSocket-Version": "13",
+                "Upgrade": "websocket",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.rest(
+            "GET",
+            "/auth/session",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetChipFilters",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "358",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetChipFilters",
+                "variables": {
+                    "input": {
+                        "context": "PROVIDER",
+                        "statuses": ["ON_TIME", "ON_HOLD", "LATE"],
+                    }
+                },
+                "query": "query GetChipFilters($input: ProjectFiltersInput!) {\n  projectFilterChips(input: $input) {\n    ...ChipFilter\n    __typename\n  }\n}\n\nfragment ChipFilter on ProjectFilterChipType {\n  label\n  value\n  key\n  __typename\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetCustomConfigurations",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "472",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetCustomConfigurations",
+                "variables": {
+                    "input": {
+                        "layoutIdentifiers": [
+                            "project-plan-columns-provider-v1",
+                            "project-plan-columns-third-party-v1",
+                            "project-plan-columns-customer-v1",
+                        ]
+                    }
+                },
+                "query": "query GetCustomConfigurations($input: UserCustomConfigurationConnectionsInputType!) {\n  userCustomConfigurationConnections(input: $input) {\n    customConfigurations {\n      configuration\n      layoutIdentifier\n      __typename\n    }\n    __typename\n  }\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetProjectList",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "3318",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetProjectList",
+                "variables": {
+                    "input": {
+                        "listInputs": {
+                            "perPage": 10,
+                            "page": 1,
+                            "keyword": "",
+                            "sortBy": "NAME",
+                            "sortDirection": "ASC",
+                        },
+                        "projectFilters": {
+                            "context": "PROVIDER",
+                            "statuses": ["ON_TIME", "ON_HOLD", "LATE"],
+                        },
+                    }
+                },
+                "query": "query GetProjectList($input: projectListInput!) {\n  projects(input: $input) {\n    maxCashValue\n    projects {\n      ...ProjectRowProjectList\n      __typename\n    }\n    pageInfo {\n      ...PageInfoProjectList\n      __typename\n    }\n    appliedFilters {\n      ...AppliedFiltersProjectList\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment PageInfoProjectList on PageInfoType {\n  currentPage\n  isOutOfBounds\n  limit\n  totalPages\n  totalResults\n  __typename\n}\n\nfragment AppliedFiltersProjectList on AppliedProjectFilters {\n  context\n  statuses\n  tags\n  strict\n  brandNames\n  customerIds\n  cashValueRange\n  projectId\n  projectLateDays\n  projectManagerIds\n  templateIds\n  projectFiltersOperator {\n    tagOperator\n    templateOperator\n    milestoneOperator\n    __typename\n  }\n  activeMilestoneNames\n  endOn\n  startOn\n  filterDateBy\n  lastUpdatedDays\n  __typename\n}\n\nfragment ProjectRowProjectList on ProjectType {\n  id\n  name\n  cashValue\n  totalTasksCount\n  openTasksCount\n  openActionItemsCount\n  overdueTasksCount\n  completedAt\n  startOn\n  endOn\n  projectStatusChangeReasons {\n    ...ProjectStatusChangeReasonsProjectList\n    __typename\n  }\n  completedAt\n  forecastedEndOn\n  deletedAt\n  archivedAt\n  currentUserSettings {\n    projectView\n    restrictAccess\n    __typename\n  }\n  currentUserProjectContext\n  currentUserRestrictedAccess\n  lastActivityAt\n  projectManager {\n    ...ProjectManagerProjectList\n    __typename\n  }\n  status\n  customerV2 {\n    ...ProjectCustomerProjectList\n    __typename\n  }\n  projectType\n  templates {\n    id\n    milestones {\n      id\n      name\n      active\n      __typename\n    }\n    __typename\n  }\n  organization {\n    id\n    name\n    logo {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  displayOrganization {\n    name\n    logo {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  brand {\n    ...ProjectBrandProjectList\n    __typename\n  }\n  tags {\n    ...ProjectListTable_ProjectTag\n    __typename\n  }\n  errors: errorsCount\n  __typename\n}\n\nfragment ProjectListTable_ProjectTag on TagType {\n  id\n  name\n  color\n  internalOnly\n  __typename\n}\n\nfragment ProjectCustomerProjectList on CustomerType {\n  id\n  name\n  logo {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectBrandProjectList on BrandType {\n  id\n  name\n  logo {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectManagerProjectList on UserType {\n  id\n  firstName\n  lastName\n  status\n  avatar {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectStatusChangeReasonsProjectList on ProjectStatusChangeReasonType {\n  id\n  name\n  description\n  createdAt\n  updatedAt\n  user {\n    id\n    firstName\n    lastName\n    avatar {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  statusChangeReason {\n    id\n    name\n    statusChangeReasonGroup {\n      id\n      name\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "GET",
+            "https://auth.split.io/api/v2/auth?users=1b3e71f2-e14c-4f44-a1c5-3dc88d3952b5",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Authorization": "Bearer akjui47oepo9b5p8kl76gfebihlcj0bme935",
+                "Connection": "keep-alive",
+                "Host": "auth.split.io",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "SplitSDKVersion": "react-1.11.1",
+            },
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "https://widget.intercom.io/widget/crui9hdm",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Alt-Used": "widget.intercom.io",
+                "Connection": "keep-alive",
+                "Host": "widget.intercom.io",
+                "If-Modified-Since": "Tue, 15 Jul 2025 06:18:24 GMT",
+                "If-None-Match": '"687675fa58874dabcede2960b9bc96f8"',
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "script",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://k2-web.guidecx.com/manager.authn.workspaces.WorkspaceService/LoadMyWorkspaces",
+            headers={
+                "Accept": "application/grpc-web-text",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "8",
+                "Host": "k2-web.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "content-type": "application/grpc-web-text",
+                "x-grpc-web": "1",
+            },
+            data="AAAAAAA=",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://api-iam.intercom.io/messenger/web/embedded/content",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1338",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Host": "api-iam.intercom.io",
+                "Origin": "https://arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+            },
+            data="app_id=crui9hdm&v=3&g=8deee548cda53e5881d9e56b48afc69ecf923de5&s=3d0489da-49ee-42ff-a396-4d4ae2638ef5&r=https%3A%2F%2Farches.guidecx.com%2Fauth%2Fbasic%3Fcurrent-user-email%3Dmhansen%252Barches%2540guidecx.com%26redirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com&platform=web&installation_type=js-snippet&installation_version=undefined&Idempotency-Key=0727c2b1bccb76d0&internal=&is_intersection_booted=false&page_title=Projects&user_active_company_id=undefined&user_data=%7B%22email%22%3A%22mhansen%2Barches%40guidecx.com%22%2C%22user_id%22%3A%2238b9687e-5ee7-4180-a568-bdda0fdf1e14%22%2C%22user_hash%22%3A%2257955478490f228e7b904f3f15fc309be9e5cd89212d950522bdecf27a442bef%22%2C%22name%22%3A%22Mike%20Hansen%22%2C%22company%22%3A%7B%22company_id%22%3A%221b3e71f2-e14c-4f44-a1c5-3dc88d3952b5%22%2C%22name%22%3A%22Arches%22%2C%22website%22%3A%22guidecx-demo.com%22%7D%2C%22role%22%3A%22ADMIN%22%2C%22org_type%22%3A%22PROVIDER%22%2C%22trial%22%3Afalse%7D&referer=https%3A%2F%2Farches.guidecx.com%2Fprojects%3Fhost%3Dapp.guidecx.com&anonymous_session=VkpWWG13VldlVHJkampzVDBtaGkrMk14QVJLSGZvU3IvdzNoMUdsZk5pQ2QrYjl4d2ZBdnlKRU5aRmQ3K0JzcDJMRngwa3VhK1l2empyV2ZGSFRQcnA2NTJ2ZkJVb2Vxd0lSVk9DSXVOelk9LS1welRhVEY3Q1ZoVjNYM28yU01EU1B3PT0%3D--52fc46c983008ef69d4e0f95db0f458d9abf66d0&device_identifier=00694d8a-f30d-415e-bfa7-4779236202f4",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://api-iam.intercom.io/messenger/web/launcher_settings",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1065",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Host": "api-iam.intercom.io",
+                "Origin": "https://arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+            },
+            data="app_id=crui9hdm&v=3&g=8deee548cda53e5881d9e56b48afc69ecf923de5&s=ca2fe61f-e1ff-4692-bb74-5b2c63811054&r=https%3A%2F%2Farches.guidecx.com%2Fauth%2Fbasic%3Fcurrent-user-email%3Dmhansen%252Barches%2540guidecx.com%26redirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com&platform=web&installation_type=js-snippet&installation_version=undefined&Idempotency-Key=75fd7264afa5fa38&internal=&is_intersection_booted=false&page_title=Projects&user_active_company_id=undefined&user_data=%7B%22email%22%3A%22mhansen%2Barches%40guidecx.com%22%2C%22user_id%22%3A%2238b9687e-5ee7-4180-a568-bdda0fdf1e14%22%2C%22user_hash%22%3A%2257955478490f228e7b904f3f15fc309be9e5cd89212d950522bdecf27a442bef%22%7D&referer=https%3A%2F%2Farches.guidecx.com%2Fprojects%3Fhost%3Dapp.guidecx.com&anonymous_session=VkpWWG13VldlVHJkampzVDBtaGkrMk14QVJLSGZvU3IvdzNoMUdsZk5pQ2QrYjl4d2ZBdnlKRU5aRmQ3K0JzcDJMRngwa3VhK1l2empyV2ZGSFRQcnA2NTJ2ZkJVb2Vxd0lSVk9DSXVOelk9LS1welRhVEY3Q1ZoVjNYM28yU01EU1B3PT0%3D--52fc46c983008ef69d4e0f95db0f458d9abf66d0&device_identifier=00694d8a-f30d-415e-bfa7-4779236202f4",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://api-iam.intercom.io/messenger/web/ping",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1374",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Host": "api-iam.intercom.io",
+                "Origin": "https://arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+            },
+            data="app_id=crui9hdm&v=3&g=8deee548cda53e5881d9e56b48afc69ecf923de5&s=fd5abdcc-4e5c-4f11-898d-8c8913964233&r=https%3A%2F%2Farches.guidecx.com%2Fauth%2Fbasic%3Fcurrent-user-email%3Dmhansen%252Barches%2540guidecx.com%26redirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com&platform=web&installation_type=js-snippet&installation_version=undefined&Idempotency-Key=ea19fdc454e6eb79&internal=%7B%7D&is_intersection_booted=false&page_title=Projects&user_active_company_id=undefined&user_data=%7B%22email%22%3A%22mhansen%2Barches%40guidecx.com%22%2C%22user_id%22%3A%2238b9687e-5ee7-4180-a568-bdda0fdf1e14%22%2C%22user_hash%22%3A%2257955478490f228e7b904f3f15fc309be9e5cd89212d950522bdecf27a442bef%22%2C%22name%22%3A%22Mike%20Hansen%22%2C%22company%22%3A%7B%22company_id%22%3A%221b3e71f2-e14c-4f44-a1c5-3dc88d3952b5%22%2C%22name%22%3A%22Arches%22%2C%22website%22%3A%22guidecx-demo.com%22%7D%2C%22role%22%3A%22ADMIN%22%2C%22org_type%22%3A%22PROVIDER%22%2C%22trial%22%3Afalse%7D&source=apiBoot&sampling=false&referer=https%3A%2F%2Farches.guidecx.com%2Fprojects%3Fhost%3Dapp.guidecx.com&anonymous_session=VkpWWG13VldlVHJkampzVDBtaGkrMk14QVJLSGZvU3IvdzNoMUdsZk5pQ2QrYjl4d2ZBdnlKRU5aRmQ3K0JzcDJMRngwa3VhK1l2empyV2ZGSFRQcnA2NTJ2ZkJVb2Vxd0lSVk9DSXVOelk9LS1welRhVEY3Q1ZoVjNYM28yU01EU1B3PT0%3D--52fc46c983008ef69d4e0f95db0f458d9abf66d0&device_identifier=00694d8a-f30d-415e-bfa7-4779236202f4",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://k2-web.guidecx.com/manager.message.channels.ChannelService/LoadTotalUnreadMentionCount",
+            headers={
+                "Accept": "application/grpc-web-text",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "8",
+                "Host": "k2-web.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "content-type": "application/grpc-web-text",
+                "x-grpc-web": "1",
+            },
+            data="AAAAAAA=",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "GET",
+            "wss://nexus-websocket-a.intercom.io/pubsub/5-qGO328JZJ8shOHfXWacQHQnxTViiN5SRnVRUpZipurUbuyyKZUuDhWZHq2kDKe5LlF7WedABUqteUjcJhcjsuibtrIi3HQwnFOJ3?X-Nexus-New-Client=true&X-Nexus-Version=0.14.0&user_role=user",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive, Upgrade",
+                "Host": "nexus-websocket-a.intercom.io",
+                "Origin": "https://arches.guidecx.com",
+                "Pragma": "no-cache",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "websocket",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "Sec-WebSocket-Extensions": "permessage-deflate",
+                "Sec-WebSocket-Key": "CB1SxSeUOVdSVHEjNAt+QQ==",
+                "Sec-WebSocket-Version": "13",
+                "Upgrade": "websocket",
+            },
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://api-iam.intercom.io/messenger/web/page_view_events",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1092",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Host": "api-iam.intercom.io",
+                "Origin": "https://arches.guidecx.com",
+                "Referer": "https://arches.guidecx.com/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+            data="app_id=crui9hdm&v=3&g=8deee548cda53e5881d9e56b48afc69ecf923de5&s=fd5abdcc-4e5c-4f11-898d-8c8913964233&r=https%3A%2F%2Farches.guidecx.com%2Fauth%2Fbasic%3Fcurrent-user-email%3Dmhansen%252Barches%2540guidecx.com%26redirect-to%3D%252Fprojects%252F%253Fhost%253Dapp.guidecx.com&platform=web&installation_type=js-snippet&installation_version=undefined&Idempotency-Key=a87e0b517b3fa289&internal=&is_intersection_booted=false&page_title=Projects&user_active_company_id=1b3e71f2-e14c-4f44-a1c5-3dc88d3952b5&user_data=%7B%22email%22%3A%22mhansen%2Barches%40guidecx.com%22%2C%22user_id%22%3A%2238b9687e-5ee7-4180-a568-bdda0fdf1e14%22%2C%22user_hash%22%3A%2257955478490f228e7b904f3f15fc309be9e5cd89212d950522bdecf27a442bef%22%7D&referer=https%3A%2F%2Farches.guidecx.com%2Fprojects%3Fhost%3Dapp.guidecx.com&anonymous_session=aTV4VG16U01hQUNGM3lRazdYNkQ3SGExdzdteUJJUU51bDFlWnNhSTFIcm1IMWt6K0tMbEhsaisydFpsNXlCWWJxSXNXM0lWN0hVZU1oSXgvMDVvRDN0blBpc1U0cTVockNVUGEya2lCQWM9LS1VKzFLdDdLL3Y1cmJTeFpTdlZ5SDlRPT0%3D--7a788468517090cb8244d4ac074574bc112cc738&device_identifier=00694d8a-f30d-415e-bfa7-4779236202f4",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.rest(
+            "GET",
+            "/auth/session",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+        ) as resp:
+            pass
+        with self.rest(
+            "POST",
+            "https://api.guidecx.com/graphql?GetProjectList",
+            headers={
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "3318",
+                "Host": "api.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "x-graphql-version": "1.0",
+            },
+            json={
+                "operationName": "GetProjectList",
+                "variables": {
+                    "input": {
+                        "listInputs": {
+                            "perPage": 10,
+                            "page": 2,
+                            "keyword": "",
+                            "sortBy": "NAME",
+                            "sortDirection": "ASC",
+                        },
+                        "projectFilters": {
+                            "context": "PROVIDER",
+                            "statuses": ["ON_TIME", "ON_HOLD", "LATE"],
+                        },
+                    }
+                },
+                "query": "query GetProjectList($input: projectListInput!) {\n  projects(input: $input) {\n    maxCashValue\n    projects {\n      ...ProjectRowProjectList\n      __typename\n    }\n    pageInfo {\n      ...PageInfoProjectList\n      __typename\n    }\n    appliedFilters {\n      ...AppliedFiltersProjectList\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment PageInfoProjectList on PageInfoType {\n  currentPage\n  isOutOfBounds\n  limit\n  totalPages\n  totalResults\n  __typename\n}\n\nfragment AppliedFiltersProjectList on AppliedProjectFilters {\n  context\n  statuses\n  tags\n  strict\n  brandNames\n  customerIds\n  cashValueRange\n  projectId\n  projectLateDays\n  projectManagerIds\n  templateIds\n  projectFiltersOperator {\n    tagOperator\n    templateOperator\n    milestoneOperator\n    __typename\n  }\n  activeMilestoneNames\n  endOn\n  startOn\n  filterDateBy\n  lastUpdatedDays\n  __typename\n}\n\nfragment ProjectRowProjectList on ProjectType {\n  id\n  name\n  cashValue\n  totalTasksCount\n  openTasksCount\n  openActionItemsCount\n  overdueTasksCount\n  completedAt\n  startOn\n  endOn\n  projectStatusChangeReasons {\n    ...ProjectStatusChangeReasonsProjectList\n    __typename\n  }\n  completedAt\n  forecastedEndOn\n  deletedAt\n  archivedAt\n  currentUserSettings {\n    projectView\n    restrictAccess\n    __typename\n  }\n  currentUserProjectContext\n  currentUserRestrictedAccess\n  lastActivityAt\n  projectManager {\n    ...ProjectManagerProjectList\n    __typename\n  }\n  status\n  customerV2 {\n    ...ProjectCustomerProjectList\n    __typename\n  }\n  projectType\n  templates {\n    id\n    milestones {\n      id\n      name\n      active\n      __typename\n    }\n    __typename\n  }\n  organization {\n    id\n    name\n    logo {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  displayOrganization {\n    name\n    logo {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  brand {\n    ...ProjectBrandProjectList\n    __typename\n  }\n  tags {\n    ...ProjectListTable_ProjectTag\n    __typename\n  }\n  errors: errorsCount\n  __typename\n}\n\nfragment ProjectListTable_ProjectTag on TagType {\n  id\n  name\n  color\n  internalOnly\n  __typename\n}\n\nfragment ProjectCustomerProjectList on CustomerType {\n  id\n  name\n  logo {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectBrandProjectList on BrandType {\n  id\n  name\n  logo {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectManagerProjectList on UserType {\n  id\n  firstName\n  lastName\n  status\n  avatar {\n    originalUrl\n    __typename\n  }\n  __typename\n}\n\nfragment ProjectStatusChangeReasonsProjectList on ProjectStatusChangeReasonType {\n  id\n  name\n  description\n  createdAt\n  updatedAt\n  user {\n    id\n    firstName\n    lastName\n    avatar {\n      originalUrl\n      __typename\n    }\n    __typename\n  }\n  statusChangeReason {\n    id\n    name\n    statusChangeReasonGroup {\n      id\n      name\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n",
+            },
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://k2-web.guidecx.com/manager.core.customfields.CustomFieldService/SearchAssigned",
+            headers={
+                "Accept": "application/grpc-web-text",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1236",
+                "Host": "k2-web.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+                "authorization": self.get_auth_header(),
+                "content-type": "application/grpc-web-text",
+                "x-grpc-web": "1",
+            },
+            data="AAAAA5gSJgokNzViNDI0ZjEtMjA1Ny00YzdlLTk4OGYtY2Y3ZTdkZDQzY2E2EiYKJDFmZjdiYzFlLTkxZGQtNDRhNi1hYmM2LTFkNTQ2MjAyNDA3YRImCiQ3OTU3YWJhNS1mM2MyLTQzZWUtYTAwNS00YTg4NTRlMTkyNjUSJgokYTk4MTZkN2QtYWMxZC00ZGM0LTliOTItNWE1ZWJlNDU4Zjg4EiYKJDE5YzcyNTgzLTZmYTEtNGUyZi04ZTkwLTQxZjA5NDYzNGFiNxImCiQxMzJhZTg4Zi1hZDdmLTRiNmYtYmNlNy05Y2YxZjlmZDZmNzkSJgokYTg4MjJlZDItYzM0OC00YjkzLWI0MTEtNjg5NTYyNWEzYjBiEiYKJDY0MGI2NjBmLWM5ODQtNGZkMS04NzEyLWRjMzA5YTlmODljMBImCiRkNjBjYjA4MC01NDA0LTQ0ZDItYWMwOC02YmQ3OTA5ZmZhNjISJgokZDMyODM3NTEtY2UzZS00YzZjLTk5NTUtMzVjNWNiMjFiY2MwGiYKJDRiNDQxYTFmLTU3NjMtNDdkMi1hNDliLTgyOWM1Nzg3NWU4MhomCiQ0NmIwZGQ4NC1hN2M3LTRlN2MtYjA1Zi1kOTM2OTVkZjg5ZDEaJgokNDZiMDljMGEtZTJlMi00NWI4LWFmNWUtZjg5MzgyNTNhNDRjGiYKJDc1NWYzYzUxLTg5NGItNDVkMi1hMzgzLTNhZjRlNmZlMDc2YRomCiQ0NmIwZTFmOS0zOTNiLTQ0NGUtYWMzYi0zNzQ0MDkyM2M5MGQaJgokNGIzZDlkYWYtYmM4Yy00ZDNkLWJhOGItYWZhNjQyOTUyNmI2GiYKJDRiM2U3NWRhLTNmZDQtNDYwZS1hZjhhLTc0Nzk5ZWNmYzNjMBomCiQ0YjQyZTVlMy1hZTExLTRjZmItODUwNy03NzBhZWU1ZWMxNmMaJgokNGI0Njk3NmQtZWNhYy00YzI0LWJjNDAtOGE5M2QzOGU2MjVkGiYKJDRiNGI0MWEzLWQzNWEtNGY3MS05NDk2LWFhZjc5YTUxNTZjYxomCiQ0YjRkN2MwOS0xNWRhLTQ4MmQtOGRjNC02YWZiMjE1Y2YxNmUaJgokNGI0ZWRiMTgtOWFiNi00YWIzLWE2MGUtYWQ0MDBmYWNhODY2GiYKJDRiNTJmOWRlLTZhYzItNDIyOS1iMzM1LTRiNGJkOWYzNDNhYQ==",
+            catch_response=True,
+        ) as resp:
+            pass
+        with self.rest(
+            "GET",
+            "/auth/session",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Host": "app.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "TE": "trailers",
+            },
+        ) as resp:
+            pass
+        with self.client.request(
+            "POST",
+            "https://k2-web.guidecx.com/manager.core.customfields.CustomFieldService/SearchAssigned",
+            headers={
+                "Accept": "application/grpc-web-text",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Connection": "keep-alive",
+                "Content-Length": "1768",
+                "Host": "k2-web.guidecx.com",
+                "Origin": "https://arches.guidecx.com",
+                "Priority": "u=4",
+                "Referer": "https://arches.guidecx.com/projects?host=app.guidecx.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "Sec-GPC": "1",
+                "authorization": self.get_auth_header(),
+                "content-type": "application/grpc-web-text",
+                "x-grpc-web": "1",
+            },
+            data="AAAABSgSJgokNzViNDI0ZjEtMjA1Ny00YzdlLTk4OGYtY2Y3ZTdkZDQzY2E2EiYKJDFmZjdiYzFlLTkxZGQtNDRhNi1hYmM2LTFkNTQ2MjAyNDA3YRImCiQ3OTU3YWJhNS1mM2MyLTQzZWUtYTAwNS00YTg4NTRlMTkyNjUSJgokYTk4MTZkN2QtYWMxZC00ZGM0LTliOTItNWE1ZWJlNDU4Zjg4EiYKJDE5YzcyNTgzLTZmYTEtNGUyZi04ZTkwLTQxZjA5NDYzNGFiNxImCiQxMzJhZTg4Zi1hZDdmLTRiNmYtYmNlNy05Y2YxZjlmZDZmNzkSJgokYTg4MjJlZDItYzM0OC00YjkzLWI0MTEtNjg5NTYyNWEzYjBiEiYKJDY0MGI2NjBmLWM5ODQtNGZkMS04NzEyLWRjMzA5YTlmODljMBImCiRkNjBjYjA4MC01NDA0LTQ0ZDItYWMwOC02YmQ3OTA5ZmZhNjISJgokZDMyODM3NTEtY2UzZS00YzZjLTk5NTUtMzVjNWNiMjFiY2MwEiYKJGY5Y2UwZWQxLTBjYTAtNGYxZC04Y2Q1LTI2NThkNTE3NDAzOBImCiQ1NWVkMzg3Zi04MWM2LTRkMzgtOTlkMi00MTNiNzAxYjBiM2YSJgokZWE2NmVkYjUtZTJlZi00Y2ZjLThhYjMtYzg3ZmQxNTE4Mjg4EiYKJDljZTg4NGM1LWZiMjMtNGE2Yi1hMTdjLWY0MGIxYzIyNDQ0ZhImCiQ0MTBjNWM2NC1mMTUxLTQyMWQtODk1ZC1lZTg3MjYzNzkyODESJgokZmY5MzU4NDUtYzU2Ni00MDA5LThlNTUtOTU4ZWY3NWQzZWRhEiYKJDQ3ZmNiOTUzLTdmMjktNDA2MC1hYTFkLTc3MGJlZTlmMzYxNhImCiQ5OWU5M2ZiYy00YTYzLTQ1YzYtYmJlNi02NzEyYTQ3M2ZiYWMSJgokNzMyNWYxYzQtNDc4YS00ZjBlLWI0ZTYtN2EyZjdmNTFlMjVlEiYKJDA2ODFmZmRlLWExYWItNGJhMC1iY2JhLTc0NmU3OWQwNzI2OBomCiQ0YjQ0MWExZi01NzYzLTQ3ZDItYTQ5Yi04MjljNTc4NzVlODIaJgokNDZiMGRkODQtYTdjNy00ZTdjLWIwNWYtZDkzNjk1ZGY4OWQxGiYKJDQ2YjA5YzBhLWUyZTItNDViOC1hZjVlLWY4OTM4MjUzYTQ0YxomCiQ3NTVmM2M1MS04OTRiLTQ1ZDItYTM4My0zYWY0ZTZmZTA3NmEaJgokNDZiMGUxZjktMzkzYi00NDRlLWFjM2ItMzc0NDA5MjNjOTBkGiYKJDRiM2Q5ZGFmLWJjOGMtNGQzZC1iYThiLWFmYTY0Mjk1MjZiNhomCiQ0YjNlNzVkYS0zZmQ0LTQ2MGUtYWY4YS03NDc5OWVjZmMzYzAaJgokNGI0MmU1ZTMtYWUxMS00Y2ZiLTg1MDctNzcwYWVlNWVjMTZjGiYKJDRiNDY5NzZkLWVjYWMtNGMyNC1iYzQwLThhOTNkMzhlNjI1ZBomCiQ0YjRiNDFhMy1kMzVhLTRmNzEtOTQ5Ni1hYWY3OWE1MTU2Y2MaJgokNGI0ZDdjMDktMTVkYS00ODJkLThkYzQtNmFmYjIxNWNmMTZlGiYKJDRiNGVkYjE4LTlhYjYtNGFiMy1hNjBlLWFkNDAwZmFjYTg2NhomCiQ0YjUyZjlkZS02YWMyLTQyMjktYjMzNS00YjRiZDlmMzQzYWE=",
+            catch_response=True,
+        ) as resp:
+            pass
+        
+        # Stop the test after completing the login flow once
+        print("✅ Login flow completed successfully - stopping test")
+        if hasattr(self, 'environment') and self.environment.runner:
+            self.environment.runner.quit()
+
+    @task
+    def idle_task(self):
+        """
+        Empty task - all the real work is done in on_start()
+        This just keeps the user alive briefly before stopping
+        """
+        pass
+
+
+if __name__ == "__main__":
+    run_single_user(arches_guidecx_com_Archive__25_07_17_12_43_00_)
