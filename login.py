@@ -15,34 +15,50 @@ load_dotenv()
 # =============================================================================
 
 # URLs - loaded from environment variables
-BASE_URL_APP = os.getenv("BASE_URL_APP", "https://app.staging.guidecx.io")
-PROJECT_URL = os.getenv("PROJECT_URL", "https://thundercats.staging.guidecx.io")
-BASE_URL_API = os.getenv("BASE_URL_API", "https://api.staging.guidecx.io")
+BASE_URL_APP = os.getenv("BASE_URL_APP")
+PROJECT_URL = os.getenv("PROJECT_URL")
+BASE_URL_API = os.getenv("BASE_URL_API")
 
 # Authentication - loaded from environment variables
-LOGIN_EMAIL = os.getenv("LOGIN_EMAIL", "mhansen+thundercats@guidecx.com")
+LOGIN_EMAIL = os.getenv("LOGIN_EMAIL")
 LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD")
 
+# Load Testing Parameters (loaded from environment)
+DEFAULT_USERS = os.getenv("DEFAULT_USERS")
+DEFAULT_SPAWN_RATE = os.getenv("DEFAULT_SPAWN_RATE")
+DEFAULT_RUN_TIME = os.getenv("DEFAULT_RUN_TIME")
+DEBUG = os.getenv("DEBUG")
+WAIT_TIME_BETWEEN_TASKS = os.getenv("WAIT_TIME_BETWEEN_TASKS")
+
 # Validate required environment variables
-if not LOGIN_PASSWORD:
-    raise ValueError("LOGIN_PASSWORD environment variable is required")
+required_vars = {
+    "BASE_URL_APP": BASE_URL_APP,
+    "PROJECT_URL": PROJECT_URL,
+    "BASE_URL_API": BASE_URL_API,
+    "LOGIN_EMAIL": LOGIN_EMAIL,
+    "LOGIN_PASSWORD": LOGIN_PASSWORD,
+    "DEFAULT_USERS": DEFAULT_USERS,
+    "DEFAULT_SPAWN_RATE": DEFAULT_SPAWN_RATE,
+    "DEFAULT_RUN_TIME": DEFAULT_RUN_TIME,
+    "DEBUG": DEBUG,
+    "WAIT_TIME_BETWEEN_TASKS": WAIT_TIME_BETWEEN_TASKS
+}
 
-# Default Load Testing Parameters
-DEFAULT_USERS = int(os.getenv("DEFAULT_USERS", "10"))          # Number of concurrent users to simulate
-DEFAULT_SPAWN_RATE = int(os.getenv("DEFAULT_SPAWN_RATE", "2"))      # Users to spawn per second
-DEFAULT_RUN_TIME = os.getenv("DEFAULT_RUN_TIME", "60s")    # How long to run the test (60s, 5m, 1h, etc.)
+missing_vars = [var for var, value in required_vars.items() if not value]
+if missing_vars:
+    raise ValueError(f"Required environment variables are missing: {', '.join(missing_vars)}")
 
-# Debug Configuration
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")               # Set to False to disable debug prints (recommended for headless mode)
+# Convert to appropriate types after validation
+DEFAULT_USERS = int(DEFAULT_USERS)          # Number of concurrent users to simulate
+DEFAULT_SPAWN_RATE = int(DEFAULT_SPAWN_RATE)      # Users to spawn per second
+DEBUG = DEBUG.lower() in ("true", "1", "yes")               # Set to False to disable debug prints (recommended for headless mode)
+WAIT_TIME_BETWEEN_TASKS = int(WAIT_TIME_BETWEEN_TASKS)  # Seconds to wait between API calls per user
 
 # READY-TO-RUN LOCUST COMMANDS (copy/paste these):
 # locust -f login.py --headless --users=10 --spawn-rate=2 --run-time=60s    # Default load test
 # locust -f login.py --headless --users=25 --spawn-rate=3 --run-time=120s   # Medium load test  
 # locust -f login.py --headless --users=50 --spawn-rate=5 --run-time=300s   # Heavy load test
 # locust -f login.py                                                        # Interactive web UI
-
-# Performance Configuration
-WAIT_TIME_BETWEEN_TASKS = int(os.getenv("WAIT_TIME_BETWEEN_TASKS", "1"))  # Seconds to wait between API calls per user
 # Extract domain names for host headers and form data
 APP_DOMAIN = BASE_URL_APP.replace("https://", "")       # app.guidecx.com
 PROJECT_DOMAIN = PROJECT_URL.replace("https://", "")   # arches.guidecx.com  
@@ -68,13 +84,12 @@ class LoginFlow(FastHttpUser):
     def get_auth_header(self):
         """
         Get the authorization header for API calls
-        Returns the captured token or a fallback if not available
+        Returns the captured token or raises an error if not available
         """
         if self.auth_token:
             return self.auth_token
         else:
-            # Fallback to hardcoded token if capture failed
-            return "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZhZjQ0NDJkLTRkZGYtNGE0ZS1hNmQzLTVhY2NlZTMxMmEzNCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhdXRoLmd1aWRlY3guY29tIiwic3ViIjoiMzhiOTY4N2UtNWVlNy00MTgwLWE1NjgtYmRkYTBmZGYxZTE0IiwiYXVkIjpbIjFiM2U3MWYyLWUxNGMtNGY0NC1hMWM1LTNkYzg4ZDM5NTJiNSIsImd1aWRlY3guY29tIl0sImV4cCI6MTc1Mjc3ODY2NywiaWF0IjoxNzUyNzc3NzY3LCJqdGkiOiI4MGU0YmQxNy0zMGM3LTQ5OTQtYmFjMy01NDcyYWRhMThkMDQiLCJ2ZXJzaW9uIjoiVjIiLCJyb2xlIjoiQURNSU4iLCJ2aWV3TWVtYmVySWQiOiIzOGI5Njg3ZS01ZWU3LTQxODAtYTU2OC1iZGRhMGZkZjFlMTQifQ.LeJbXeqLrMj9uc5a5M8nOOcoHIN6EPa8YHk9GzWmJRCYzs7vBVJVsPgFoUahWTyL42KXQgay6m01oOTqxegWk4WHVhG81BI2aNBjbpO8EPy_ZotKtKhiF9TQwaDtmI_-z5nvxMn_-V-FrZgQBuK8kW2M2uFcBp9mixWLWcipimh9SQBEdJy6quCu3dvWM4d9LNLvFe6aQCbx8Bt-F3V1v6_ihDn5-jQnWGS1supK2szIu93VJuuxgFxHHOyB76RhZ7zy_8sWmpi9dZmV_A8XgDz2v5fwqeZXCIIeO8GnvpouW9dTBfDpenyc7aZJS34il-d5yKyp5rbgZsIrhzVPdQ"
+            raise ValueError("No authentication token available - login flow may have failed")
 
     def extract_next_action_id(self, html_content):
         """
@@ -796,16 +811,16 @@ if __name__ == "__main__":
 🎯 COPY & RUN THESE LOCUST COMMANDS:
 
    # Light Load Test (10 users, 60 seconds)
-   locust -f loginnew.py --headless --users=10 --spawn-rate=2 --run-time=60s
+   locust -f login.py --headless --users=10 --spawn-rate=2 --run-time=60s
    
    # Medium Load Test (25 users, 2 minutes)  
-   locust -f loginnew.py --headless --users=25 --spawn-rate=3 --run-time=120s
+   locust -f login.py --headless --users=25 --spawn-rate=3 --run-time=120s
    
    # Heavy Load Test (50 users, 5 minutes)
-   locust -f loginnew.py --headless --users=50 --spawn-rate=5 --run-time=300s
+   locust -f login.py --headless --users=50 --spawn-rate=5 --run-time=300s
    
    # Interactive Web UI (open http://localhost:8089)
-   locust -f loginnew.py
+   locust -f login.py
 
 📝 Single User Debug Mode Running Below...
     """)
