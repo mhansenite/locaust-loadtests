@@ -1,102 +1,93 @@
 """
-Automatic Workflow Discovery System
+GuideX Load Testing Workflows
+=============================
 
-This module automatically discovers and imports all workflow classes
-from the workflows directory, eliminating the need to manually update
-imports when adding new workflows.
+Organized workflow collection for comprehensive load testing of GuideX platform.
+
+Directory Structure:
+- project/: Project management and planning workflows
+- admin/: Administrative and global system workflows  
+- testing/: Testing utilities and debugging workflows
+
+Usage Examples:
+    # Import specific workflow
+    from workflows.project import ProjectPlanUser
+    
+    # Import all workflows from a category
+    from workflows.project import *
+    
+    # Import everything
+    from workflows import *
 """
 
-import os
-import importlib
-import inspect
-from typing import Dict, Type, List
+# Import from subdirectories
+from .project import (
+    ProjectPlanUser,
+    ProjectPlanFixedUser,
+    ThundercatsProjectUser
+)
 
+from .admin import (
+    GlobalProjectsUser,
+    GlobalTasksUser
+)
 
-def discover_workflow_classes() -> Dict[str, Type]:
-    """
-    Automatically discover all workflow classes in the workflows directory.
+from .testing import (
+    TestQuotesFixUser
+)
+
+# Export all user classes
+__all__ = [
+    # Project workflows
+    'ProjectPlanUser',
+    'ProjectPlanFixedUser', 
+    'ThundercatsProjectUser',
     
-    Returns:
-        Dict mapping class names to class objects for all classes that:
-        - Are in *_user.py files
-        - Inherit from AuthenticatedUser (indirectly via inspection)
-        - Have a 'weight' attribute
-    """
-    workflow_classes = {}
-    workflows_dir = os.path.dirname(__file__)
+    # Admin workflows
+    'GlobalProjectsUser',
+    'GlobalTasksUser',
     
-    # Find all Python files ending with '_user.py'
-    for filename in os.listdir(workflows_dir):
-        if filename.endswith('_user.py') and filename != '__init__.py':
-            module_name = filename[:-3]  # Remove .py extension
-            
-            try:
-                # Import the module dynamically
-                module = importlib.import_module(f'workflows.{module_name}')
-                
-                # Find all classes in the module
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # Check if it's a workflow class by looking for:
-                    # 1. 'weight' attribute (all workflow classes have this)
-                    # 2. Class is defined in this module (not imported)
-                    # 3. Has 'task' methods (characteristic of Locust users)
-                    if (hasattr(obj, 'weight') and 
-                        obj.__module__ == module.__name__ and
-                        _has_task_methods(obj)):
-                        
-                        workflow_classes[name] = obj
-                        
-            except ImportError as e:
-                print(f"⚠️  Could not import workflow module {module_name}: {e}")
-                continue
+    # Testing workflows
+    'TestQuotesFixUser'
+]
+
+# Workflow categories for easy access
+PROJECT_WORKFLOWS = [
+    'ProjectPlanUser',
+    'ProjectPlanFixedUser', 
+    'ThundercatsProjectUser'
+]
+
+ADMIN_WORKFLOWS = [
+    'GlobalProjectsUser',
+    'GlobalTasksUser'
+]
+
+TESTING_WORKFLOWS = [
+    'TestQuotesFixUser'
+]
+
+def list_workflows():
+    """List all available workflow classes organized by category"""
+    print("📊 Available Load Testing Workflows")
+    print("=" * 50)
     
-    return workflow_classes
-
-
-def _has_task_methods(cls) -> bool:
-    """Check if a class has methods decorated with @task"""
-    for name, method in inspect.getmembers(cls, inspect.isfunction):
-        if hasattr(method, 'locust_task_weight'):  # Locust task attribute
-            return True
-    return False
-
-
-def get_workflow_info() -> List[Dict]:
-    """
-    Get formatted information about all discovered workflows
-    """
-    workflows = discover_workflow_classes()
-    workflow_info = []
+    print(f"\n🏗️  PROJECT WORKFLOWS ({len(PROJECT_WORKFLOWS)}):")
+    for workflow in PROJECT_WORKFLOWS:
+        print(f"   • {workflow}")
     
-    for name, cls in workflows.items():
-        # Extract docstring description
-        doc = cls.__doc__ or "No description available"
-        description = doc.split('\n')[1].strip() if '\n' in doc else doc.strip()
+    print(f"\n⚙️  ADMIN WORKFLOWS ({len(ADMIN_WORKFLOWS)}):")
+    for workflow in ADMIN_WORKFLOWS:
+        print(f"   • {workflow}")
         
-        workflow_info.append({
-            'name': name,
-            'class': cls,
-            'weight': getattr(cls, 'weight', 1),
-            'description': description
-        })
+    print(f"\n🧪 TESTING WORKFLOWS ({len(TESTING_WORKFLOWS)}):")
+    for workflow in TESTING_WORKFLOWS:
+        print(f"   • {workflow}")
     
-    # Sort by weight (higher weight first, then alphabetically)
-    workflow_info.sort(key=lambda x: (-x['weight'], x['name']))
-    
-    return workflow_info
+    print(f"\n📖 Usage:")
+    print("   from workflows.project import ProjectPlanUser")
+    print("   locust -f guidex_loadtest.py ProjectPlanUser --users=10")
 
-
-# Auto-discover and expose all workflow classes
-_discovered_workflows = discover_workflow_classes()
-
-# Create __all__ dynamically
-__all__ = list(_discovered_workflows.keys())
-
-# Make all discovered classes available at package level
-locals().update(_discovered_workflows)
-
-# For debugging
-if __name__ == "__main__":
-    print("🔍 Discovered Workflows:")
-    for name, cls in _discovered_workflows.items():
-        print(f"  • {name} (weight: {getattr(cls, 'weight', 1)})") 
+def get_workflow_by_name(name):
+    """Get workflow class by name"""
+    return globals().get(name, None) 

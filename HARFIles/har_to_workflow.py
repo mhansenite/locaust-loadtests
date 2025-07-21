@@ -33,9 +33,10 @@ from urllib.parse import urlparse
 class HARWorkflowGenerator:
     """Converts HAR files or HAR-converted Python files to modular workflow classes"""
     
-    def __init__(self, input_file_path: str, workflow_name: str):
+    def __init__(self, input_file_path: str, workflow_name: str, subdirectory: str = None):
         self.input_file_path = input_file_path
         self.workflow_name = workflow_name
+        self.subdirectory = subdirectory
         self.class_name = f"{workflow_name}User"
         self.file_name = self._to_snake_case(workflow_name) + "_user.py"
         self.requests = []
@@ -241,22 +242,38 @@ class HARWorkflowGenerator:
         }
         
         assets_filtered = 0
+        server_actions_filtered = 0
+        prefetch_filtered = 0
         
         for req in requests:
             url = req['url']
             method = req['method']
+            headers = req.get('headers', {})
+            data = req.get('data', '')
             
             # Skip static assets entirely - they don't represent real user load
             if self._is_asset(url, method):
                 assets_filtered += 1
                 continue
             
+            # Skip Next.js server actions - they're often session-specific and cause 405 errors
+            if self._is_server_action(url, method, headers, data):
+                server_actions_filtered += 1
+                continue
+            
+            # Skip problematic Next.js router prefetch requests - these often cause 404/500 errors
+            if self._is_problematic_prefetch(url, method, headers):
+                prefetch_filtered += 1
+                continue
+            
+
+            
             # Categorize meaningful requests
-            if self._is_page_load(url, method):
+            if self._is_page_load(url, method, headers):
                 grouped['page_load'].append(req)
             elif self._is_api_call(url, method):
                 grouped['api_calls'].append(req)
-            elif self._is_data_refresh(url, method, req.get('data', '')):
+            elif self._is_data_refresh(url, method, data):
                 grouped['data_refresh'].append(req)
             elif self._is_filter_request(url, method):
                 grouped['filters'].append(req)
@@ -266,17 +283,39 @@ class HARWorkflowGenerator:
         
         if assets_filtered > 0:
             print(f"🗑️ Filtered out {assets_filtered} static asset requests (images, fonts, CSS, JS, etc.)")
+        
+        if server_actions_filtered > 0:
+            print(f"🔒 Filtered out {server_actions_filtered} Next.js server actions (session-specific, cause 405 errors)")
+        
+        if prefetch_filtered > 0:
+            print(f"🚫 Filtered out {prefetch_filtered} problematic router prefetch requests (often cause 404/500 errors)")
                 
         # Remove empty groups
         return {k: v for k, v in grouped.items() if v}
     
-    def _is_page_load(self, url: str, method: str) -> bool:
-        """Determine if request is a page load"""
-        return (method == 'GET' and 
-                ('_rsc=' in url or 'projects' in url or '/v2/' in url) and
-                'favicon' not in url and
-                not url.endswith('.ico') and
-                not self._is_asset(url, method))
+    def _is_page_load(self, url: str, method: str, headers: Dict[str, str] = None) -> bool:
+        """Determine if request is a genuine page load (not a prefetch)"""
+        if method != 'GET':
+            return False
+            
+        # Exclude assets and favicons
+        if self._is_asset(url, method) or 'favicon' in url or url.endswith('.ico'):
+            return False
+            
+        # If we have headers, check if this is a prefetch (which is not a real page load)
+        if headers:
+            has_prefetch_header = any(key.lower() == 'next-router-prefetch' for key in headers.keys())
+            if has_prefetch_header:
+                return False
+        
+        # Core page load patterns that represent real user navigation
+        return (
+            ('_rsc=' in url and ('projects' in url or '/v2/' in url)) or  # React Server Components for core pages
+            (url.endswith('/v2/projects')) or  # Main projects page
+            ('/project/' in url and '/plan' in url) or  # Individual project plans
+            ('/project/' in url and '/team' in url) or  # Project team pages
+            ('/project/' in url and '/messages' in url)  # Project messages
+        )
     
     def _is_api_call(self, url: str, method: str) -> bool:
         """Determine if request is an API call"""
@@ -350,17 +389,203 @@ class HARWorkflowGenerator:
             
         return False
     
+    def _is_server_action(self, url: str, method: str, headers: Dict[str, str], data: str) -> bool:
+        """Determine if request is a Next.js server action that should be filtered out"""
+        return (method == 'POST' and 
+                any(key.lower() == 'next-action' for key in headers.keys()) and
+                ('projects' in url or '/v2/' in url))
+    
+    def _is_problematic_prefetch(self, url: str, method: str, headers: Dict[str, str]) -> bool:
+        """
+        Determine if request is a problematic Next.js router prefetch that should be filtered out.
+        These requests often cause 404/500 errors in load testing environments.
+        """
+        if method != 'GET':
+            return False
+            
+        # Check for Next.js router prefetch header
+        has_prefetch_header = any(key.lower() == 'next-router-prefetch' for key in headers.keys())
+        
+        if not has_prefetch_header:
+            return False
+            
+        # List of route patterns that are known to cause issues in load testing
+        problematic_routes = [
+            '/app/support',        # Support page - often 404 in load testing
+            '/app/notifications',  # Notifications page - often 404 in load testing  
+            '/messaging',          # Messaging page - often 500 in load testing
+            '/app/help',           # Help pages
+            '/app/settings',       # Settings pages
+            '/app/profile',        # Profile pages
+            '/admin/',             # Admin routes
+            '/support/',           # Support routes
+            '/help/',              # Help routes
+        ]
+        
+        # Check if URL contains any problematic route patterns
+        url_lower = url.lower()
+        for route in problematic_routes:
+            if route in url_lower:
+                return True
+                
+        # Also filter prefetch requests to routes that are not core functionality
+        # These are typically navigation preloads that don't represent real user actions
+        non_core_patterns = [
+            '/app/',               # App subdirectory routes (not main app functionality)
+            '/static/',            # Static content prefetches
+            '/public/',            # Public content prefetches
+        ]
+        
+        for pattern in non_core_patterns:
+            if pattern in url_lower and '/app/project' not in url_lower and '/v2/' not in url_lower:
+                return True
+                
+        return False
+    
+
     def _is_data_refresh(self, url: str, method: str, data: str) -> bool:
-        """Determine if request is for data refresh"""
+        """Determine if request is for data refresh (excluding server actions)"""
         return (method == 'POST' and 
                 ('projects' in url or '/v2/' in url) and
-                ('Next-Action' in str(data) or '[{' in str(data) or 'refresh' in url))
+                ('Next-Action' not in str(data)) and  # Exclude server actions
+                ('[{' in str(data) or 'refresh' in url))
     
     def _is_filter_request(self, url: str, method: str) -> bool:
         """Determine if request is for loading filters/dropdowns"""
         return ('k2-web' in url and 
                 ('Dropdown' in url or 'Load' in url)) or \
                ('filter' in url.lower() or 'dropdown' in url.lower())
+    
+    def _make_project_ids_configurable(self, url_or_path: str) -> str:
+        """
+        Replace hard-coded UUIDs with CSV-driven template variables.
+        This allows the same workflow to work with CSV data for realistic load testing.
+        """
+        import re
+        
+        # Keep track of what parameters we've found
+        if not hasattr(self, '_csv_parameters'):
+            self._csv_parameters = set()
+        
+        result = url_or_path
+        
+        # Replace project UUIDs with CSV template variable
+        uuid_pattern = r'/project/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(uuid_pattern, result):
+            result = re.sub(uuid_pattern, r'/project/{projectID}', result)
+            self._csv_parameters.add('projectID')
+        
+        # Replace phase UUIDs in query parameters  
+        phase_pattern = r'([?&])phase=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(phase_pattern, result):
+            result = re.sub(phase_pattern, r'\1phase={phaseID}', result)
+            self._csv_parameters.add('phaseID')
+            
+        # Replace milestone UUIDs in query parameters (standard format)
+        milestone_pattern = r'([?&])milestone=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(milestone_pattern, result):
+            result = re.sub(milestone_pattern, r'\1milestone={milestoneID}', result)
+            self._csv_parameters.add('milestoneID')
+            
+        # Replace milestone UUIDs in query parameters (hyphenated format)
+        milestone_id_pattern = r'([?&])milestone-id=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(milestone_id_pattern, result):
+            result = re.sub(milestone_id_pattern, r'\1milestone-id={milestoneID}', result)
+            self._csv_parameters.add('milestoneID')
+            
+        # Replace task UUIDs in query parameters (standard format)
+        task_query_pattern = r'([?&])task=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(task_query_pattern, result):
+            result = re.sub(task_query_pattern, r'\1task={taskID}', result)
+            self._csv_parameters.add('taskID')
+            
+        # Replace task UUIDs in query parameters (hyphenated format)
+        task_id_pattern = r'([?&])task-id=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(task_id_pattern, result):
+            result = re.sub(task_id_pattern, r'\1task-id={taskID}', result)
+            self._csv_parameters.add('taskID')
+            
+        # Replace task UUIDs in path segments (e.g., /task/uuid or /tasks/uuid)
+        task_path_pattern = r'/tasks?/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(task_path_pattern, result):
+            result = re.sub(task_path_pattern, r'/task/{taskID}', result)
+            self._csv_parameters.add('taskID')
+            
+        # Replace messageId UUIDs in query parameters  
+        message_id_pattern = r'([?&])messageId=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(message_id_pattern, result):
+            result = re.sub(message_id_pattern, r'\1messageId={messageID}', result)
+            self._csv_parameters.add('messageID')
+            
+        # Replace channelId UUIDs in query parameters
+        channel_id_pattern = r'([?&])channelId=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        if re.search(channel_id_pattern, result):
+            result = re.sub(channel_id_pattern, r'\1channelId={channelID}', result)
+            self._csv_parameters.add('channelID')
+        
+        return result
+    
+    def _generate_project_id_config(self) -> str:
+        """Generate configuration section for CSV-driven parameters"""
+        
+        config_lines = []
+        config_lines.append("# CSV Data Loading")
+        config_lines.append('CSV_FILE_PATH = os.getenv("TEST_DATA_CSV", "config/test_data_staging.csv")')
+        config_lines.append("")
+        config_lines.append("def load_test_data():")
+        config_lines.append('    """Load test data from CSV file"""')
+        config_lines.append("    try:")
+        config_lines.append("        # Adjust path relative to where Locust is run from")
+        config_lines.append("        if not os.path.isabs(CSV_FILE_PATH):")
+        config_lines.append("            # For standalone files, adjust relative to project root")
+        config_lines.append("            if 'workflows/' in __file__:")
+        config_lines.append("                # Calculate project root from workflow file location")
+        config_lines.append("                project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))")
+        config_lines.append("                csv_path = os.path.join(project_root, CSV_FILE_PATH)")
+        config_lines.append("            else:")
+        config_lines.append("                csv_path = CSV_FILE_PATH")
+        config_lines.append("        else:")
+        config_lines.append("            csv_path = CSV_FILE_PATH")
+        config_lines.append("            ")
+        config_lines.append("        with open(csv_path, 'r') as f:")
+        config_lines.append("            reader = csv.DictReader(f)")
+        config_lines.append("            data = list(reader)")
+        config_lines.append("            if not data:")
+        config_lines.append('                raise ValueError("CSV file is empty")')
+        config_lines.append("            return data")
+        config_lines.append("    except FileNotFoundError:")
+        config_lines.append(f'        print(f"\\n❌ CSV file not found: {{CSV_FILE_PATH}}")')
+        
+        # Show detected parameters
+        if hasattr(self, '_csv_parameters') and self._csv_parameters:
+            params_list = sorted(list(self._csv_parameters))
+            standard_columns = ['domain', 'login_email', 'login_password']
+            all_columns = standard_columns + params_list
+        else:
+            # Default columns when no parameters detected
+            all_columns = ['domain', 'login_email', 'login_password']
+        
+        config_lines.append('        print("\\n📝 Create environment-specific CSV files in config/ directory:")')
+        config_lines.append('        print("\\n🟡 STAGING: config/test_data_staging.csv")')
+        config_lines.append(f'        print("   {",".join(all_columns)}")')
+        config_lines.append('        print("   staging.guidecx.io,stage_user1@test.com,stage_pass")')
+        config_lines.append('        print("\\n🔴 PRODUCTION: config/test_data_production.csv")')
+        config_lines.append(f'        print("   {",".join(all_columns)}")')
+        config_lines.append('        print("   production.guidecx.com,prod_user1@company.com,prod_pass")')
+        config_lines.append('        print("\\n🔧 Usage:")')
+        config_lines.append('        print("   export TEST_DATA_CSV=config/test_data_staging.csv")')
+        config_lines.append('        print("   locust -f <this_file> --users=5")')
+        config_lines.append('        raise')
+        config_lines.append("    except Exception as e:")
+        config_lines.append(f'        print(f"\\n❌ Error loading CSV file: {{e}}")')
+        config_lines.append("        raise")
+        config_lines.append("")
+        
+        config_lines.append("# Load all test data at startup")
+        config_lines.append("TEST_DATA = load_test_data()")
+        config_lines.append(f'print(f"✅ Loaded {{len(TEST_DATA)}} test data rows from {{CSV_FILE_PATH}}")')
+        
+        return "\n".join(config_lines)
     
     def _generate_task_method(self, task_name: str, requests: List[Dict[str, Any]], weight: int, is_first_task: bool = False) -> str:
         """Generate a task method from grouped requests"""
@@ -476,17 +701,95 @@ class HARWorkflowGenerator:
         # Default fallback
         return "https://arches.{DOMAIN_SUFFIX}/v2/projects"
     
-    def _generate_environment_aware_url(self, url: str) -> str:
-        """Convert absolute URLs to environment-aware template variables using DOMAIN_SUFFIX"""
-        if not url.startswith('https://'):
-            # Relative URL - keep as-is
-            return f'"{url}"'
+    def _filter_session_parameters(self, url: str) -> str:
+        """
+        Remove session-specific query parameters that become invalid after recording.
+        These parameters are tied to specific sessions and cause 404/500 errors when reused.
+        """
+        if '?' not in url:
+            return url
             
-        parsed = urlparse(url)
+        # Split URL and query parameters
+        base_url, query_string = url.split('?', 1)
+        
+        # Parse query parameters
+        from urllib.parse import parse_qs, urlencode
+        params = parse_qs(query_string)
+        
+        # Remove session-specific parameters
+        session_params_to_remove = [
+            '_rsc',           # React Server Component identifiers
+            '_next_action',   # Next.js action IDs
+            'session_id',     # Session identifiers
+            'timestamp',      # Time-based parameters
+            'nonce',          # One-time use tokens
+            'csrf_token',     # CSRF tokens
+            'cachebuster',    # Cache busting parameters
+        ]
+        
+        filtered_params = {}
+        removed_params = []
+        
+        for key, values in params.items():
+            if key.lower() not in session_params_to_remove:
+                filtered_params[key] = values
+            else:
+                removed_params.append(f"{key}={values[0] if values else ''}")
+        
+        # Log what was filtered for debugging
+        if removed_params:
+            print(f"🧹 Filtered session parameters: {', '.join(removed_params)}")
+        
+        # Rebuild URL
+        if filtered_params:
+            # Convert back to query string format
+            clean_query = urlencode(filtered_params, doseq=True)
+            return f"{base_url}?{clean_query}"
+        else:
+            return base_url
+    
+    def _normalize_subdomain(self, subdomain: str) -> str:
+        """
+        Normalize known subdomains to the correct ones for the current environment.
+        This handles cases where HAR files contain legacy or environment-specific subdomains.
+        """
+        # Map known subdomains to the correct ones
+        subdomain_mapping = {
+            'thundercats': 'app',     # Legacy subdomain → current app subdomain
+            'app': 'app',             # Keep app as-is
+            'arches': 'arches',       # Keep arches as-is (auth system)
+            'api': 'api',             # Keep api as-is
+        }
+        
+        normalized = subdomain_mapping.get(subdomain.lower(), subdomain)
+        if normalized != subdomain:
+            print(f"🔧 Normalized subdomain: {subdomain} → {normalized}")
+        
+        return normalized
+    
+    def _generate_environment_aware_url(self, url: str) -> str:
+        """Convert absolute URLs to environment-aware template variables using DOMAIN_SUFFIX and CSV data"""
+        if not url.startswith('https://'):
+            # Relative URL - filter session parameters and make configurable
+            filtered_url = self._filter_session_parameters(url)
+            configurable_url = self._make_project_ids_configurable(filtered_url)
+            if configurable_url != filtered_url:
+                # URL contains CSV template variables, use .format() (avoid f-string conflicts)
+                return f'"{configurable_url}".format(**self.test_data)'
+            return f'"{filtered_url}"'
+            
+        # Filter session parameters first
+        filtered_url = self._filter_session_parameters(url)
+        
+        parsed = urlparse(filtered_url)
         domain = parsed.netloc.lower()
         path = parsed.path
         query = f"?{parsed.query}" if parsed.query else ""
         fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+        
+        # Make project IDs configurable in the path
+        configurable_path = self._make_project_ids_configurable(path)
+        configurable_query = self._make_project_ids_configurable(query)
         
         # Check if this looks like a GuideX domain (has a subdomain pattern)
         if ('.' in domain and 
@@ -494,12 +797,27 @@ class HARWorkflowGenerator:
              domain.endswith('.guidecx.io') or 
              'guidecx' in domain)):
             
-            # Extract the subdomain (everything before the first dot)
+            # Extract and normalize the subdomain (everything before the first dot)
             subdomain = domain.split('.')[0]
-            return f'f"https://{subdomain}.{{DOMAIN_SUFFIX}}{path}{query}{fragment}"'
+            normalized_subdomain = self._normalize_subdomain(subdomain)
+            
+            # Check if we have CSV template variables
+            has_csv_vars = (configurable_path != path or configurable_query != query)
+            
+            if has_csv_vars:
+                # Use .format() for CSV data substitution (avoid f-string conflicts)
+                full_url = f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}{configurable_path}{configurable_query}{fragment}"
+                return f'"{full_url}".format(**self.test_data)'
+            else:
+                return f'f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}{path}{query}{fragment}"'
         else:
-            # External domain - keep as absolute URL but add a comment
-            return f'"{url}"  # External URL - not environment-aware'
+            # External domain - keep as absolute URL
+            if configurable_path != path or configurable_query != query:
+                # Has CSV variables
+                full_url = f"https://{domain}{configurable_path}{configurable_query}{fragment}"
+                return f'"{full_url}".format(**self.test_data)'
+            else:
+                return f'"{url}"'
     
     def _generate_environment_aware_host(self, host: str) -> str:
         """Convert host headers to use environment-aware domain variables using DOMAIN_SUFFIX"""
@@ -511,9 +829,10 @@ class HARWorkflowGenerator:
              host_lower.endswith('.guidecx.io') or 
              'guidecx' in host_lower)):
             
-            # Extract the subdomain (everything before the first dot)
+            # Extract and normalize the subdomain (everything before the first dot)
             subdomain = host_lower.split('.')[0]
-            return f"{subdomain}.{{DOMAIN_SUFFIX}}"
+            normalized_subdomain = self._normalize_subdomain(subdomain)
+            return f"{normalized_subdomain}.{{DOMAIN_SUFFIX}}"
         else:
             # External host - keep as-is
             return host
@@ -532,9 +851,10 @@ class HARWorkflowGenerator:
              domain.endswith('.guidecx.io') or 
              'guidecx' in domain)):
             
-            # Extract the subdomain (everything before the first dot)
+            # Extract and normalize the subdomain (everything before the first dot)
             subdomain = domain.split('.')[0]
-            return f"https://{subdomain}.{{DOMAIN_SUFFIX}}"
+            normalized_subdomain = self._normalize_subdomain(subdomain)
+            return f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}"
         else:
             # External domain - keep as-is
             return url
@@ -579,6 +899,16 @@ class HARWorkflowGenerator:
             # If processing fails, return original value
             print(f"⚠️ Could not process router tree: {e}")
             return router_tree
+    
+    def _escape_header_value(self, value: str) -> str:
+        """
+        Properly escape header values for Python code generation.
+        Handles quotes and special characters in header values.
+        """
+        # Use repr() to properly escape quotes and special characters
+        # This converts "1751999789511" to '"1751999789511"' 
+        # and handles other edge cases automatically
+        return repr(value)
     
     def _generate_headers_dict(self, headers: Dict[str, str], method: str) -> Tuple[str, bool, bool]:
         """Generate Python dict code for headers, return (headers_code, needs_dynamic_action, needs_dynamic_router_state)"""
@@ -625,58 +955,214 @@ class HARWorkflowGenerator:
                 else:
                     # Static router state with potential f-string formatting
                     if '{DOMAIN_SUFFIX}' in str(value) or '%7BDOMAIN_SUFFIX%7D' in str(value):
-                        items.append(f'                "{key}": f"{value}"')
+                        items.append(f'                "{key}": f{self._escape_header_value(value)}')
                     else:
-                        items.append(f'                "{key}": "{value}"')
+                        items.append(f'                "{key}": {self._escape_header_value(value)}')
             elif '{DOMAIN_SUFFIX}' in str(value) or '%7BDOMAIN_SUFFIX%7D' in str(value):
                 # Header with DOMAIN_SUFFIX template (literal or URL-encoded) - needs f-string
-                items.append(f'                "{key}": f"{value}"')
+                items.append(f'                "{key}": f{self._escape_header_value(value)}')
             else:
-                items.append(f'                "{key}": "{value}"')
+                items.append(f'                "{key}": {self._escape_header_value(value)}')
             
         headers_code = '{\n' + ',\n'.join(items) + '\n            }'
         return headers_code, has_next_action, has_router_state
     
     def _generate_workflow_class(self) -> str:
-        """Generate the complete workflow class"""
-        template = f'''#!/usr/bin/env python3
+        """Generate the complete standalone workflow class"""
+        
+        template = '''#!/usr/bin/env python3
 """
-{self.workflow_name} User - Auto-generated from HAR file
-Converted from HAR file and integrated into modular architecture
+{workflow_name} User - Standalone Version for Direct Execution
+Can be run directly with: locust -f {relative_path}
+
+This is a self-contained version that includes all necessary dependencies.
+Auto-generated from HAR file: {input_file}
 """
 
-from locust import task
-from auth.base_user import AuthenticatedUser
-from auth.config import (
-    DOMAIN_SUFFIX, DEBUG
-)
+import os
+import sys
+import csv
+import random
+import re
+from urllib.parse import urljoin, urlparse
+from locust import HttpUser, task, between
+import requests
 
+# =============================================================================
+# CONFIGURATION - Embedded for standalone execution
+# =============================================================================
 
-class {self.class_name}(AuthenticatedUser):
+# Environment Configuration
+DOMAIN_SUFFIX = os.getenv("DOMAIN_SUFFIX", "staging.guidecx.io")
+DEBUG = os.getenv("DEBUG", "false").lower() in ["true", "1", "yes"]
+
+{project_config}
+
+# =============================================================================
+# AUTHENTICATION BASE CLASS - Embedded for standalone execution  
+# =============================================================================
+
+class AuthenticatedUser(HttpUser):
     """
-    User focused on {self.workflow_name.lower()} activities.
-    Auto-generated from HAR workflow for authentic interactions.
+    Base class for authenticated users with CSV data support.
+    Embedded version for standalone workflow execution.
     """
     
-    # Use arches subdomain as host (adjust if needed)
-    host = f"https://arches.{{DOMAIN_SUFFIX}}"
+    wait_time = between(3, 8)
+    
+    def __init__(self, *args, **kwargs):
+        # Assign CSV data to this user instance BEFORE calling super()
+        self.test_data = random.choice(TEST_DATA)
+        
+        # Set host from CSV data BEFORE calling super()
+        if 'domain' in self.test_data and self.test_data['domain']:
+            self.host = "https://arches." + self.test_data['domain']
+        else:
+            raise ValueError(
+                "No 'domain' found in CSV test data. "
+                "Available keys: " + str(list(self.test_data.keys())) + ". "
+                "Please add a 'domain' column to your CSV file (e.g., staging.guidecx.io)"
+            )
+        
+        super().__init__(*args, **kwargs)
+        
+        # Override authentication config with CSV data
+        self.login_email = self.test_data.get('login_email', 'default@test.com')
+        self.login_password = self.test_data.get('login_password', 'default_pass')
+        
+        # Authentication state
+        self.is_authenticated = False
+        self.auth_cookies = {{}}
+        self.csrf_token = None
+        self.next_action_id = None
+        self.router_state_tree = None
+        
+        if DEBUG:
+            print(f"🚀 User initialized with CSV data:")
+            print(f"   • Host: {{self.host}}")
+            print(f"   • Email: {{self.login_email}}")
+            print(f"   • Test Data Keys: {{list(self.test_data.keys())}}")
+    
+    def on_start(self):
+        """Authenticate user on startup"""
+        self.authenticate()
+        
+    def authenticate(self):
+        """Handle user authentication"""
+        if DEBUG:
+            print("🔑 Starting authentication...")
+            
+        try:
+            # Step 1: Get login page
+            login_response = self.client.get("/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.staging.guidecx.io")
+            if login_response.status_code != 200:
+                if DEBUG:
+                    print(f"❌ Login page failed: {{login_response.status_code}}")
+                return False
+                
+            # Step 2: Extract Next-Action ID
+            html_content = login_response.text
+            action_pattern = r'name="Next-Action"[^>]*value="([^"]+)"'
+            action_match = re.search(action_pattern, html_content)
+            
+            if action_match:
+                self.next_action_id = action_match.group(1)
+                if DEBUG:
+                    print(f"✅ Found Next-Action ID: {{self.next_action_id[:20]}}...")
+            else:
+                if DEBUG:
+                    print("❌ Could not find Next-Action ID")
+                return False
+            
+            # Step 3: Perform login
+            login_data = {{
+                'email': self.login_email,
+                'password': self.login_password,
+                'Next-Action': self.next_action_id
+            }}
+            
+            login_submit = self.client.post(
+                "/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.staging.guidecx.io",
+                data=login_data,
+                allow_redirects=False
+            )
+            
+            if login_submit.status_code in [303, 302]:
+                self.is_authenticated = True
+                if DEBUG:
+                    print("✅ Authentication successful")
+                return True
+            else:
+                if DEBUG:
+                    print(f"❌ Authentication failed: {{login_submit.status_code}}")
+                return False
+                
+        except Exception as e:
+            if DEBUG:
+                print(f"❌ Authentication error: {{e}}")
+            return False
+    
+    def get_current_router_state(self):
+        """Get current router state for Next.js requests"""
+        return self.router_state_tree or ""
+    
+    def get_csv_value(self, key, default=""):
+        """Get a value from this user's CSV data"""
+        return self.test_data.get(key, default)
+    
+    def extract_next_action_id(self, html_content):
+        """Extract Next-Action ID from HTML content"""
+        action_pattern = r'name="Next-Action"[^>]*value="([^"]+)"'
+        action_match = re.search(action_pattern, html_content)
+        return action_match.group(1) if action_match else None
+
+# =============================================================================
+# WORKFLOW CLASS - {class_name}
+# =============================================================================
+
+class {class_name}(AuthenticatedUser):
+    """
+    User focused on {workflow_name_lower} activities.
+    Standalone version for direct Locust execution.
+    """
     
     # Relative weight when multiple user classes exist
     weight = 2
 
-{{task_methods}}
+{task_methods}
 
-    def on_start(self):
-        """
-        Override to ensure we're properly authenticated before starting tasks
-        """
-        # Call parent on_start to handle login
-        super().on_start()
-        
-        if DEBUG:
-            print("🚀 {self.class_name} initialized and authenticated")
-            print(f"   • Host: {{self.host}}")
-            print(f"   • Domain Suffix: {{DOMAIN_SUFFIX}}")
+# =============================================================================
+# STANDALONE EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    """
+    When run directly, show usage information
+    """
+    print(f"""
+🚀 {workflow_name} Standalone Workflow
+
+📋 Usage:
+   locust -f {relative_path}
+
+🔧 Configuration:
+   export TEST_DATA_CSV=config/test_data_staging.csv
+   export DOMAIN_SUFFIX=staging.guidecx.io
+   export DEBUG=true
+
+📊 Example Commands:
+   # Basic test
+   locust -f {relative_path} --headless --users=5 --spawn-rate=1 --run-time=30s
+
+   # With specific CSV data
+   export TEST_DATA_CSV=config/test_data_production.csv
+   locust -f {relative_path} --headless --users=3 --spawn-rate=1 --run-time=15s
+
+   # Web UI mode
+   locust -f {relative_path}
+
+✅ This file is self-contained and can run independently!
+    """)
 '''
 
         # Generate task methods
@@ -702,7 +1188,24 @@ class {self.class_name}(AuthenticatedUser):
                 method_code = self._generate_task_method(task_name, requests, weight, is_first_task)
                 task_methods.append(method_code)
         
-        return template.replace('{task_methods}', '\n\n'.join(task_methods))
+        # Generate project ID configuration after URLs have been processed
+        project_config = self._generate_project_id_config()
+        
+        # Determine relative path for usage instructions
+        if self.subdirectory:
+            relative_path = f"workflows/{self.subdirectory}/{self._to_snake_case(self.workflow_name)}_user.py"
+        else:
+            relative_path = f"workflows/{self._to_snake_case(self.workflow_name)}_user.py"
+        
+        return template.format(
+            workflow_name=self.workflow_name,
+            workflow_name_lower=self.workflow_name.lower(),
+            class_name=self.class_name,
+            project_config=project_config,
+            task_methods='\n\n'.join(task_methods),
+            relative_path=relative_path,
+            input_file=self.input_file_path
+        )
     
     def generate(self) -> str:
         """Main method to generate the workflow class"""
@@ -803,46 +1306,112 @@ For more information, see: utils/README_HAR_CONVERTER.md
 
 
 def main():
-    """Command line interface"""
-    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] in ['-h', '--help', 'help']):
-        show_help()
-        sys.exit(0)
-        
-    if len(sys.argv) != 3:
-        print("❌ Invalid arguments")
-        show_help()
+    """Main function to handle command line arguments and workflow generation"""
+    if len(sys.argv) < 3:
+        print("Usage: python har_to_workflow.py <har_file> <workflow_name> [subdirectory]")
+        print("")
+        print("Arguments:")
+        print("  har_file:      Path to HAR file to convert")
+        print("  workflow_name: Name for the workflow (e.g., 'ProjectPlan')")
+        print("  subdirectory:  Optional subdirectory in workflows/ (e.g., 'project', 'admin', 'testing')")
+        print("")
+        print("Examples:")
+        print("  python har_to_workflow.py file.har ProjectPlan")
+        print("  python har_to_workflow.py file.har ProjectPlan project")
+        print("  python har_to_workflow.py file.har GlobalTasks admin")
+        print("")
+        print("Available subdirectories:")
+        print("  • project  - Project management and planning workflows")
+        print("  • admin    - Administrative and global system workflows")  
+        print("  • testing  - Testing utilities and debugging workflows")
         sys.exit(1)
-        
-    input_file_path = sys.argv[1]
+    
+    har_file = sys.argv[1]
     workflow_name = sys.argv[2]
+    subdirectory = sys.argv[3] if len(sys.argv) > 3 else None
     
-    # Validate input file
-    if not os.path.exists(input_file_path):
-        print(f"❌ Input file not found: {input_file_path}")
+    # Validate subdirectory if provided
+    valid_subdirs = ['project', 'admin', 'testing']
+    if subdirectory and subdirectory not in valid_subdirs:
+        print(f"❌ Invalid subdirectory '{subdirectory}'")
+        print(f"📁 Available subdirectories: {', '.join(valid_subdirs)}")
         sys.exit(1)
-        
-    # Validate file extension
-    file_ext = os.path.splitext(input_file_path)[1].lower()
-    if file_ext not in ['.har', '.py']:
-        print(f"❌ Unsupported file type: {file_ext}")
-        print("   Supported formats: .har, .py")
-        sys.exit(1)
-        
-    # Generate the workflow
-    print(f"🚀 Starting HAR to Workflow conversion...")
-    print(f"   • Input: {input_file_path}")
+    
+    print("🚀 Starting HAR to Workflow conversion...")
+    print(f"   • Input: {har_file}")
     print(f"   • Workflow: {workflow_name}")
-    print("")
+    if subdirectory:
+        print(f"   • Subdirectory: workflows/{subdirectory}/")
     
-    generator = HARWorkflowGenerator(input_file_path, workflow_name)
-    output_path = generator.save_to_file()
-    
-    if output_path:
-        python_file_info = ""
-        if generator.is_har_file and hasattr(generator, 'temp_python_file'):
-            python_file_info = f"Python conversion: {generator.temp_python_file}\n"
+    try:
+        generator = HARWorkflowGenerator(har_file, workflow_name, subdirectory)
+        workflow_code = generator.generate()
         
-        print(f"""
+        if workflow_code:
+            # Determine output path
+            if subdirectory:
+                os.makedirs(f"workflows/{subdirectory}", exist_ok=True)
+                output_path = f"workflows/{subdirectory}/{generator._to_snake_case(workflow_name)}_user.py"
+            else:
+                output_path = f"workflows/{generator._to_snake_case(workflow_name)}_user.py"
+            
+            # Write the workflow file
+            with open(output_path, 'w') as f:
+                f.write(workflow_code)
+            
+            print(f"✅ Generated workflow saved to: {output_path}")
+            
+            # Show completion message with subdirectory info
+            python_file_info = ""
+            if generator.is_har_file and hasattr(generator, 'temp_python_file'):
+                python_file_info = f"Python conversion: {generator.temp_python_file}\n"
+            
+            # Generate project ID configuration message if needed
+            project_config_msg = ""
+            if hasattr(generator, '_csv_parameters') and generator._csv_parameters:
+                params_list = sorted(list(generator._csv_parameters))
+                
+                project_config_msg = f"""
+⚙️  ENVIRONMENT-SPECIFIC CSV CONFIGURATION:
+This workflow uses CSV-driven test data for realistic load testing.
+
+📋 Required CSV columns: domain,login_email,login_password,{','.join(params_list)}
+
+📁 Create separate environment files:
+
+🟡 STAGING: config/test_data_staging.csv
+   domain,login_email,login_password,{','.join(params_list)}
+   staging.guidecx.io,stage_user1@test.com,stage_pass,uuid1,uuid2,uuid3
+   staging.guidecx.io,stage_user2@test.com,stage_pass,uuid4,uuid5,uuid6
+
+🔴 PRODUCTION: config/test_data_production.csv  
+   domain,login_email,login_password,{','.join(params_list)}
+   production.guidecx.com,prod_user1@company.com,prod_pass,uuid7,uuid8,uuid9
+   production.guidecx.com,prod_user2@company.com,prod_pass,uuid10,uuid11,uuid12
+
+🔧 Usage Examples:
+   # Test staging environment:
+   export TEST_DATA_CSV=config/test_data_staging.csv
+   locust -f guidex_loadtest.py {generator.class_name} --users=10 --spawn-rate=2
+   
+   # Test production environment:
+   export TEST_DATA_CSV=config/test_data_production.csv  
+   locust -f guidex_loadtest.py {generator.class_name} --users=5 --spawn-rate=1
+
+✅ Benefits:
+   • Security: Separate credentials for each environment
+   • Flexibility: Different data sets per environment  
+   • Safety: No accidental cross-environment testing
+   • Organization: Clear environment separation
+
+📝 Find UUIDs: Browse your app and copy UUIDs from project/phase/task URLs.
+"""
+
+            # Show directory structure with subdirectory
+            subdir_info = f"/{subdirectory}" if subdirectory else ""
+            import_path = f"workflows.{subdirectory}.{generator._to_snake_case(workflow_name)}_user" if subdirectory else f"workflows.{generator._to_snake_case(workflow_name)}_user"
+            
+            print(f"""
 🎉 HAR to Workflow Conversion Complete!
 
 📁 File Organization:
@@ -854,23 +1423,37 @@ def main():
    ├── RAW_PY/           # HAR→Python conversions
    │   └── {os.path.basename(generator.temp_python_file) if hasattr(generator, 'temp_python_file') else 'YourFile.py'}
    │
-   workflows/             # Generated workflow classes  
-   └── {os.path.basename(output_path)}
+   workflows{subdir_info}/           # Generated workflow classes  
+   └── {os.path.basename(output_path)}{project_config_msg}
 
 Next steps:
 1. Review the generated workflow file
-2. Adjust weights and task logic if needed
+2. Create environment-specific CSV files in config/ directory:
+   • config/test_data_staging.csv (for staging tests)
+   • config/test_data_production.csv (for production tests)
 3. Add to guidex_loadtest.py:
-   from workflows.{generator._to_snake_case(workflow_name)}_user import {generator.class_name}
+   from {import_path} import {generator.class_name}
    __all__ = [..., '{generator.class_name}']
 
 4. Test the workflow:
+   # Staging environment:
+   export TEST_DATA_CSV=config/test_data_staging.csv
    locust -f guidex_loadtest.py {generator.class_name} --headless --users=5 --spawn-rate=1 --run-time=30s
+   
+   # Production environment:
+   export TEST_DATA_CSV=config/test_data_production.csv
+   locust -f guidex_loadtest.py {generator.class_name} --headless --users=3 --spawn-rate=1 --run-time=15s
 
 📖 For more details, see: utils/README_HAR_CONVERTER.md
 """)
-    else:
-        print("❌ Failed to generate workflow")
+        else:
+            print("❌ Failed to generate workflow")
+            sys.exit(1)
+    
+    except Exception as e:
+        print(f"❌ Error during conversion: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
