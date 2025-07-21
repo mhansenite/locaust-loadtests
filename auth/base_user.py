@@ -282,18 +282,10 @@ class AuthenticatedUser(FastHttpUser):
                     if DEBUG:
                         print(f"   ✅ Captured router state from HTML (length: {len(self.current_router_state)})")
                 else:
-                    # Final fallback - choose appropriate router state based on workflow type
-                    workflow_class_name = self.__class__.__name__
-                    if "Task" in workflow_class_name:
-                        # Tasks workflow - use /tasks router state
-                        self.current_router_state = "%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22tasks%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Ftasks%22%2C%22refresh%22%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%2Cnull%2C%22refetch%22%5D%7D%5D%7D%5D"
-                        if DEBUG:
-                            print(f"   ⚠️ Using fallback router state for /tasks (length: {len(self.current_router_state)})")
-                    else:
-                        # Default to projects workflow - use /v2/projects router state
-                        self.current_router_state = "%5B%22%22%2C%7B%22children%22%3A%5B%22%28protected%29%22%2C%7B%22children%22%3A%5B%22v2%22%2C%7B%22children%22%3A%5B%22projects%22%2C%7B%22children%22%3A%5B%22%28list%29%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fv2%2Fprojects%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%5D"
-                        if DEBUG:
-                            print(f"   ⚠️ Using fallback router state for /v2/projects (length: {len(self.current_router_state)})")
+                    # No router state available - workflows will handle this gracefully
+                    self.current_router_state = None
+                    if DEBUG:
+                        print("   ⚠️ No router state available - workflows will continue without it")
         else:
             self.current_router_state = None
 

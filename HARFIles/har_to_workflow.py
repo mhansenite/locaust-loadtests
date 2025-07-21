@@ -447,8 +447,7 @@ class HARWorkflowGenerator:
             else:
                 code.append(f'            data={data},')
                 
-        code.append('            catch_response=True,')
-        code.append(f'            name="{request_name.replace("_", " ").title()}"')
+        code.append('            catch_response=True')
         code.append('        ) as resp:')
         code.append('            if resp.status_code == 200:')
         code.append('                if DEBUG:')

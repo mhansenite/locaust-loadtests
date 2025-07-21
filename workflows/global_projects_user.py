@@ -54,8 +54,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "Sec-GPC": "1",
                 "TE": "trailers"
             },
-            catch_response=True,
-            name="Page Load"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -90,8 +89,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "Sec-GPC": "1",
                 "TE": "trailers"
             },
-            catch_response=True,
-            name="Api Calls 1"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -114,8 +112,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "Sec-GPC": "1",
                 "TE": "trailers"
             },
-            catch_response=True,
-            name="Api Calls 2"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -138,8 +135,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "Sec-GPC": "1",
                 "TE": "trailers"
             },
-            catch_response=True,
-            name="Api Calls 3"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -162,8 +158,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "Sec-GPC": "1",
                 "TE": "trailers"
             },
-            catch_response=True,
-            name="Api Calls 4"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -221,8 +216,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "TE": "trailers"
             },
             data='[{"type":2}]',
-            catch_response=True,
-            name="Data Refresh 1"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -268,8 +262,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "TE": "trailers"
             },
             data='[{}]',
-            catch_response=True,
-            name="Data Refresh 2"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -315,8 +308,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "TE": "trailers"
             },
             data='[{}]',
-            catch_response=True,
-            name="Data Refresh 3"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -362,8 +354,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "TE": "trailers"
             },
             data='[{}]',
-            catch_response=True,
-            name="Data Refresh 4"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -401,8 +392,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "x-grpc-web": "1"
             },
             data='AAAAAAA=',
-            catch_response=True,
-            name="Filters 1"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -428,8 +418,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "x-grpc-web": "1"
             },
             data='AAAAAAA=',
-            catch_response=True,
-            name="Filters 2"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -455,8 +444,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "x-grpc-web": "1"
             },
             data='AAAAAAA=',
-            catch_response=True,
-            name="Filters 3"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
@@ -481,8 +469,7 @@ class GlobalProjectsUser(AuthenticatedUser):
                 "x-grpc-web": "1"
             },
             data='AAAAAAA=',
-            catch_response=True,
-            name="Filters 4"
+            catch_response=True
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
