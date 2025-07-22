@@ -3,7 +3,16 @@ Common API helper functions for GuideX load testing.
 Provides reusable patterns for API calls and response handling.
 """
 
-from auth.config import BASE_URL_API, PROJECT_URL, APP_DOMAIN, API_DOMAIN, DEBUG
+import os
+
+# Environment-aware configuration (matches auth/base_user.py pattern)
+DOMAIN_SUFFIX = os.getenv("DOMAIN_SUFFIX", "staging.guidecx.io")
+DEBUG = os.getenv("DEBUG", "false").lower() in ["true", "1", "yes"]
+
+# Dynamic URL construction based on environment
+BASE_URL_API = f"https://api.{DOMAIN_SUFFIX}"
+PROJECT_URL = f"https://arches.{DOMAIN_SUFFIX}"
+API_DOMAIN = f"api.{DOMAIN_SUFFIX}"
 
 
 def get_graphql_headers(auth_token, operation_name="", referer_path="/projects"):
@@ -59,9 +68,9 @@ def handle_graphql_response(response, operation_name, expected_data_key=None):
     """
     if response.status_code != 200:
         if DEBUG:
-            print(f"❌ {operation_name} failed: {response.status_code}")
+            print(f"{operation_name} failed: {response.status_code}")
             response_text = response.text or "No response text"
-            print(f"   Response text: {response_text[:500]}...")
+            print(f"Response text: {response_text[:500]}...")
         response.failure(f"{operation_name} failed: {response.status_code}")
         return None
     
@@ -71,7 +80,7 @@ def handle_graphql_response(response, operation_name, expected_data_key=None):
         # Check for GraphQL errors
         if 'errors' in data:
             if DEBUG:
-                print(f"❌ {operation_name} GraphQL errors: {data['errors']}")
+                print(f"{operation_name} GraphQL errors: {data['errors']}")
             response.failure(f"{operation_name} GraphQL errors")
             return None
         
@@ -84,28 +93,28 @@ def handle_graphql_response(response, operation_name, expected_data_key=None):
                     if 'pageInfo' in extracted_data and 'totalResults' in extracted_data['pageInfo']:
                         total_results = extracted_data['pageInfo']['totalResults']
                         if DEBUG:
-                            print(f"✅ {operation_name} success: {total_results} total results")
+                            print(f"{operation_name} success: {total_results} total results")
                     elif isinstance(extracted_data, list):
                         if DEBUG:
-                            print(f"✅ {operation_name} success: {len(extracted_data)} items")
+                            print(f"{operation_name} success: {len(extracted_data)} items")
                     else:
                         if DEBUG:
-                            print(f"✅ {operation_name} success")
+                            print(f"{operation_name} success")
                 else:
                     if DEBUG:
-                        print(f"✅ {operation_name} success")
+                        print(f"{operation_name} success")
             else:
                 if DEBUG:
-                    print(f"✅ {operation_name} success (no {expected_data_key} data)")
+                    print(f"{operation_name} success (no {expected_data_key} data)")
         else:
             if DEBUG:
-                print(f"✅ {operation_name} success: {response.status_code}")
+                print(f"{operation_name} success: {response.status_code}")
         
         return data
         
     except Exception as e:
         if DEBUG:
-            print(f"✅ {operation_name} success: {response.status_code} (couldn't parse JSON: {e})")
+            print(f"{operation_name} success: {response.status_code} (couldn't parse JSON: {e})")
         return {"status": "success", "raw_response": response.text}
 
 

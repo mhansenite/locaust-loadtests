@@ -38,7 +38,7 @@ class HARWorkflowGenerator:
         self.workflow_name = workflow_name
         self.subdirectory = subdirectory
         self.class_name = f"{workflow_name}User"
-        self.file_name = self._to_snake_case(workflow_name) + "_user.py"
+        self.file_name = f"{workflow_name}.py"
         self.requests = []
         self.grouped_tasks = {}
         self.temp_python_file = None
@@ -968,153 +968,35 @@ class HARWorkflowGenerator:
         return headers_code, has_next_action, has_router_state
     
     def _generate_workflow_class(self) -> str:
-        """Generate the complete standalone workflow class"""
+        """Generate the complete workflow class using shared authentication"""
         
         template = '''#!/usr/bin/env python3
 """
-{workflow_name} User - Standalone Version for Direct Execution
+{workflow_name} User - Uses Shared Authentication
 Can be run directly with: locust -f {relative_path}
 
-This is a self-contained version that includes all necessary dependencies.
+Uses shared authentication from auth.base_user module.
 Auto-generated from HAR file: {input_file}
 """
 
 import os
 import sys
-import csv
-import random
-import re
-from urllib.parse import urljoin, urlparse
-from locust import HttpUser, task, between
-import requests
+from locust import task
+from auth.base_user import AuthenticatedUser
+
+# Add project root to path for imports when run directly
+if __name__ == "__main__":
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
 # =============================================================================
-# CONFIGURATION - Embedded for standalone execution
+# CONFIGURATION - Environment settings
 # =============================================================================
 
-# Environment Configuration
+# Get configuration from environment or shared auth module
 DOMAIN_SUFFIX = os.getenv("DOMAIN_SUFFIX", "staging.guidecx.io")
 DEBUG = os.getenv("DEBUG", "false").lower() in ["true", "1", "yes"]
-
-{project_config}
-
-# =============================================================================
-# AUTHENTICATION BASE CLASS - Embedded for standalone execution  
-# =============================================================================
-
-class AuthenticatedUser(HttpUser):
-    """
-    Base class for authenticated users with CSV data support.
-    Embedded version for standalone workflow execution.
-    """
-    
-    wait_time = between(3, 8)
-    
-    def __init__(self, *args, **kwargs):
-        # Assign CSV data to this user instance BEFORE calling super()
-        self.test_data = random.choice(TEST_DATA)
-        
-        # Set host from CSV data BEFORE calling super()
-        if 'domain' in self.test_data and self.test_data['domain']:
-            self.host = "https://arches." + self.test_data['domain']
-        else:
-            raise ValueError(
-                "No 'domain' found in CSV test data. "
-                "Available keys: " + str(list(self.test_data.keys())) + ". "
-                "Please add a 'domain' column to your CSV file (e.g., staging.guidecx.io)"
-            )
-        
-        super().__init__(*args, **kwargs)
-        
-        # Override authentication config with CSV data
-        self.login_email = self.test_data.get('login_email', 'default@test.com')
-        self.login_password = self.test_data.get('login_password', 'default_pass')
-        
-        # Authentication state
-        self.is_authenticated = False
-        self.auth_cookies = {{}}
-        self.csrf_token = None
-        self.next_action_id = None
-        self.router_state_tree = None
-        
-        if DEBUG:
-            print(f"🚀 User initialized with CSV data:")
-            print(f"   • Host: {{self.host}}")
-            print(f"   • Email: {{self.login_email}}")
-            print(f"   • Test Data Keys: {{list(self.test_data.keys())}}")
-    
-    def on_start(self):
-        """Authenticate user on startup"""
-        self.authenticate()
-        
-    def authenticate(self):
-        """Handle user authentication"""
-        if DEBUG:
-            print("🔑 Starting authentication...")
-            
-        try:
-            # Step 1: Get login page
-            login_response = self.client.get("/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.staging.guidecx.io")
-            if login_response.status_code != 200:
-                if DEBUG:
-                    print(f"❌ Login page failed: {{login_response.status_code}}")
-                return False
-                
-            # Step 2: Extract Next-Action ID
-            html_content = login_response.text
-            action_pattern = r'name="Next-Action"[^>]*value="([^"]+)"'
-            action_match = re.search(action_pattern, html_content)
-            
-            if action_match:
-                self.next_action_id = action_match.group(1)
-                if DEBUG:
-                    print(f"✅ Found Next-Action ID: {{self.next_action_id[:20]}}...")
-            else:
-                if DEBUG:
-                    print("❌ Could not find Next-Action ID")
-                return False
-            
-            # Step 3: Perform login
-            login_data = {{
-                'email': self.login_email,
-                'password': self.login_password,
-                'Next-Action': self.next_action_id
-            }}
-            
-            login_submit = self.client.post(
-                "/auth/login?redirect-to=%2Fprojects%2F%3Fhost%3Dapp.staging.guidecx.io",
-                data=login_data,
-                allow_redirects=False
-            )
-            
-            if login_submit.status_code in [303, 302]:
-                self.is_authenticated = True
-                if DEBUG:
-                    print("✅ Authentication successful")
-                return True
-            else:
-                if DEBUG:
-                    print(f"❌ Authentication failed: {{login_submit.status_code}}")
-                return False
-                
-        except Exception as e:
-            if DEBUG:
-                print(f"❌ Authentication error: {{e}}")
-            return False
-    
-    def get_current_router_state(self):
-        """Get current router state for Next.js requests"""
-        return self.router_state_tree or ""
-    
-    def get_csv_value(self, key, default=""):
-        """Get a value from this user's CSV data"""
-        return self.test_data.get(key, default)
-    
-    def extract_next_action_id(self, html_content):
-        """Extract Next-Action ID from HTML content"""
-        action_pattern = r'name="Next-Action"[^>]*value="([^"]+)"'
-        action_match = re.search(action_pattern, html_content)
-        return action_match.group(1) if action_match else None
 
 # =============================================================================
 # WORKFLOW CLASS - {class_name}
@@ -1136,21 +1018,18 @@ class {class_name}(AuthenticatedUser):
 # =============================================================================
 
 if __name__ == "__main__":
-    """
-    When run directly, show usage information
-    """
     print(f"""
-🚀 {workflow_name} Standalone Workflow
+{workflow_name} Workflow
 
-📋 Usage:
+Usage:
    locust -f {relative_path}
 
-🔧 Configuration:
+Configuration:
    export TEST_DATA_CSV=config/test_data_staging.csv
    export DOMAIN_SUFFIX=staging.guidecx.io
    export DEBUG=true
 
-📊 Example Commands:
+Example Commands:
    # Basic test
    locust -f {relative_path} --headless --users=5 --spawn-rate=1 --run-time=30s
 
@@ -1160,8 +1039,6 @@ if __name__ == "__main__":
 
    # Web UI mode
    locust -f {relative_path}
-
-✅ This file is self-contained and can run independently!
     """)
 '''
 
@@ -1188,10 +1065,7 @@ if __name__ == "__main__":
                 method_code = self._generate_task_method(task_name, requests, weight, is_first_task)
                 task_methods.append(method_code)
         
-        # Generate project ID configuration after URLs have been processed
-        project_config = self._generate_project_id_config()
-        
-        # Determine relative path for usage instructions
+        # Determine relative path for usage instructions (after manual move)
         if self.subdirectory:
             relative_path = f"workflows/{self.subdirectory}/{self._to_snake_case(self.workflow_name)}_user.py"
         else:
@@ -1201,7 +1075,6 @@ if __name__ == "__main__":
             workflow_name=self.workflow_name,
             workflow_name_lower=self.workflow_name.lower(),
             class_name=self.class_name,
-            project_config=project_config,
             task_methods='\n\n'.join(task_methods),
             relative_path=relative_path,
             input_file=self.input_file_path
@@ -1245,7 +1118,7 @@ if __name__ == "__main__":
             # Always clean up temp files
             self._cleanup_temp_files()
     
-    def save_to_file(self, output_dir: str = "workflows") -> str:
+    def save_to_file(self, output_dir: str = "GEN_WORKFLOW_PY") -> str:
         """Generate and save the workflow to a file"""
         workflow_code = self.generate()
         
@@ -1260,7 +1133,7 @@ if __name__ == "__main__":
         with open(output_path, 'w') as f:
             f.write(workflow_code)
             
-        print(f"✅ Generated workflow saved to: {output_path}")
+        print(f"Generated workflow saved to: {output_path}")
         return output_path
 
 
@@ -1305,61 +1178,92 @@ For more information, see: utils/README_HAR_CONVERTER.md
     print(help_text)
 
 
+def _har_filename_to_workflow_name(har_file_path: str) -> str:
+    """Convert HAR filename to PascalCase workflow name"""
+    import os
+    
+    # Get the base filename without extension
+    base_name = os.path.splitext(os.path.basename(har_file_path))[0]
+    
+    # First split on common separators: underscores, hyphens, dots, spaces
+    words = re.split(r'[-_.:\s]+', base_name)
+    
+    # Then handle camelCase by splitting on capital letters
+    final_words = []
+    for word in words:
+        if word:
+            # Split camelCase words (e.g., "clickProject" -> ["click", "Project"])
+            camel_split = re.findall(r'[A-Z][a-z]*|[a-z]+', word)
+            if camel_split:
+                final_words.extend(camel_split)
+            else:
+                final_words.append(word)
+    
+    # Convert each word to title case and join
+    pascal_case = ''.join(word.capitalize() for word in final_words if word)
+    
+    return pascal_case
+
 def main():
     """Main function to handle command line arguments and workflow generation"""
-    if len(sys.argv) < 3:
-        print("Usage: python har_to_workflow.py <har_file> <workflow_name> [subdirectory]")
+    if len(sys.argv) < 2:
+        print("Usage: python har_to_workflow.py <har_file> [subdirectory]")
         print("")
         print("Arguments:")
         print("  har_file:      Path to HAR file to convert")
-        print("  workflow_name: Name for the workflow (e.g., 'ProjectPlan')")
         print("  subdirectory:  Optional subdirectory in workflows/ (e.g., 'project', 'admin', 'testing')")
         print("")
         print("Examples:")
-        print("  python har_to_workflow.py file.har ProjectPlan")
-        print("  python har_to_workflow.py file.har ProjectPlan project")
-        print("  python har_to_workflow.py file.har GlobalTasks admin")
+        print("  python har_to_workflow.py GlobalProjects.har")
+        print("  python har_to_workflow.py project_plan.har project")
+        print("  python har_to_workflow.py global-tasks.har admin")
         print("")
         print("Available subdirectories:")
         print("  • project  - Project management and planning workflows")
         print("  • admin    - Administrative and global system workflows")  
         print("  • testing  - Testing utilities and debugging workflows")
+        print("")
+        print("Note: Workflow name is automatically derived from HAR filename")
         sys.exit(1)
     
     har_file = sys.argv[1]
-    workflow_name = sys.argv[2]
-    subdirectory = sys.argv[3] if len(sys.argv) > 3 else None
+    subdirectory = sys.argv[2] if len(sys.argv) > 2 else None
+    
+    # Auto-generate workflow name from HAR filename
+    workflow_name = _har_filename_to_workflow_name(har_file)
     
     # Validate subdirectory if provided
     valid_subdirs = ['project', 'admin', 'testing']
     if subdirectory and subdirectory not in valid_subdirs:
-        print(f"❌ Invalid subdirectory '{subdirectory}'")
-        print(f"📁 Available subdirectories: {', '.join(valid_subdirs)}")
+        print(f"Invalid subdirectory '{subdirectory}'")
+        print(f"Available subdirectories: {', '.join(valid_subdirs)}")
         sys.exit(1)
     
-    print("🚀 Starting HAR to Workflow conversion...")
-    print(f"   • Input: {har_file}")
-    print(f"   • Workflow: {workflow_name}")
+    print("Starting HAR to Workflow conversion...")
+    print(f"Input: {har_file}")
+    print(f"Workflow name: {workflow_name} (auto-generated from filename)")
     if subdirectory:
-        print(f"   • Subdirectory: workflows/{subdirectory}/")
+        print(f"Subdirectory: workflows/{subdirectory}/")
     
     try:
         generator = HARWorkflowGenerator(har_file, workflow_name, subdirectory)
         workflow_code = generator.generate()
         
         if workflow_code:
-            # Determine output path
-            if subdirectory:
-                os.makedirs(f"workflows/{subdirectory}", exist_ok=True)
-                output_path = f"workflows/{subdirectory}/{generator._to_snake_case(workflow_name)}_user.py"
-            else:
-                output_path = f"workflows/{generator._to_snake_case(workflow_name)}_user.py"
+            # Determine output path - create GEN_WORKFLOW_PY in HARFIles directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            gen_dir = os.path.join(script_dir, "GEN_WORKFLOW_PY")
+            os.makedirs(gen_dir, exist_ok=True)
+            
+            output_filename = f"{workflow_name}.py"
+            output_path = os.path.join(gen_dir, output_filename)
             
             # Write the workflow file
             with open(output_path, 'w') as f:
                 f.write(workflow_code)
             
-            print(f"✅ Generated workflow saved to: {output_path}")
+            print(f"Generated workflow saved to: {output_path}")
+            print(f"Suggested target: workflows/{subdirectory + '/' if subdirectory else ''}{workflow_name}.py")
             
             # Show completion message with subdirectory info
             python_file_info = ""
@@ -1372,12 +1276,12 @@ def main():
                 params_list = sorted(list(generator._csv_parameters))
                 
                 project_config_msg = f"""
-⚙️  ENVIRONMENT-SPECIFIC CSV CONFIGURATION:
-This workflow uses CSV-driven test data for realistic load testing.
+⚙️  SHARED AUTHENTICATION WITH CSV CONFIGURATION:
+This workflow uses the shared auth.base_user module with CSV-driven test data.
 
 📋 Required CSV columns: domain,login_email,login_password,{','.join(params_list)}
 
-📁 Create separate environment files:
+📁 Create separate environment files (managed by auth.base_user):
 
 🟡 STAGING: config/test_data_staging.csv
    domain,login_email,login_password,{','.join(params_list)}
@@ -1392,19 +1296,19 @@ This workflow uses CSV-driven test data for realistic load testing.
 🔧 Usage Examples:
    # Test staging environment:
    export TEST_DATA_CSV=config/test_data_staging.csv
-   locust -f guidex_loadtest.py {generator.class_name} --users=10 --spawn-rate=2
+   locust -f {output_path} --users=10 --spawn-rate=2
    
    # Test production environment:
    export TEST_DATA_CSV=config/test_data_production.csv  
-   locust -f guidex_loadtest.py {generator.class_name} --users=5 --spawn-rate=1
+   locust -f {output_path} --users=5 --spawn-rate=1
 
 ✅ Benefits:
-   • Security: Separate credentials for each environment
-   • Flexibility: Different data sets per environment  
-   • Safety: No accidental cross-environment testing
-   • Organization: Clear environment separation
+   • Centralized authentication: Changes in one place (auth/base_user.py)
+   • No regeneration needed: Auth updates apply to all workflows
+   • Environment-aware: Separate credentials per environment
+   • CSV-driven: Flexible test data management
 
-📝 Find UUIDs: Browse your app and copy UUIDs from project/phase/task URLs.
+📝 Authentication changes: Edit auth/base_user.py (affects all workflows)
 """
 
             # Show directory structure with subdirectory
@@ -1412,46 +1316,30 @@ This workflow uses CSV-driven test data for realistic load testing.
             import_path = f"workflows.{subdirectory}.{generator._to_snake_case(workflow_name)}_user" if subdirectory else f"workflows.{generator._to_snake_case(workflow_name)}_user"
             
             print(f"""
-🎉 HAR to Workflow Conversion Complete!
+HAR to Workflow Conversion Complete!
 
-📁 File Organization:
-{python_file_info}Generated workflow: {output_path}
-
-📊 Directory Structure:
-   HARFiles/
-   ├── RAW_HAR/          # Original HAR files  
-   ├── RAW_PY/           # HAR→Python conversions
-   │   └── {os.path.basename(generator.temp_python_file) if hasattr(generator, 'temp_python_file') else 'YourFile.py'}
-   │
-   workflows{subdir_info}/           # Generated workflow classes  
-   └── {os.path.basename(output_path)}{project_config_msg}
-
+Generated workflow: {output_path}
+{python_file_info}
 Next steps:
-1. Review the generated workflow file
-2. Create environment-specific CSV files in config/ directory:
-   • config/test_data_staging.csv (for staging tests)
-   • config/test_data_production.csv (for production tests)
-3. Add to guidex_loadtest.py:
-   from {import_path} import {generator.class_name}
-   __all__ = [..., '{generator.class_name}']
+1. Move the generated file to your desired location:
+   # For {subdirectory or 'general'} workflows:
+   mv {output_path} workflows/{subdirectory + '/' if subdirectory else ''}{workflow_name}.py
 
-4. Test the workflow:
-   # Staging environment:
-   export TEST_DATA_CSV=config/test_data_staging.csv
-   locust -f guidex_loadtest.py {generator.class_name} --headless --users=5 --spawn-rate=1 --run-time=30s
-   
-   # Production environment:
-   export TEST_DATA_CSV=config/test_data_production.csv
-   locust -f guidex_loadtest.py {generator.class_name} --headless --users=3 --spawn-rate=1 --run-time=15s
+2. Create environment-specific CSV files:
+   config/test_data_staging.csv
+   config/test_data_production.csv
 
-📖 For more details, see: utils/README_HAR_CONVERTER.md
+3. Test the workflow:
+   locust -f workflows/{subdirectory + '/' if subdirectory else ''}{workflow_name}.py --users=1 --spawn-rate=2 --run-time=10s
+
+Authentication changes: Edit auth/base_user.py (affects ALL workflows automatically!)
 """)
         else:
-            print("❌ Failed to generate workflow")
+            print("Failed to generate workflow")
             sys.exit(1)
     
     except Exception as e:
-        print(f"❌ Error during conversion: {e}")
+        print(f"Error during conversion: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
