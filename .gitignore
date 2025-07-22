@@ -4,3 +4,4 @@ myenv/
 Temp.websight/
 config/test_data_staging.csv
 config/test_data_production.csv
+.env
