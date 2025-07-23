@@ -220,31 +220,6 @@ class LoadProjectPlanUser(AuthenticatedUser):
                     print(f"❌ Api Calls 4 failed: {resp.status_code}")
 
         with self.make_api_request(
-            "GET",
-            "api",
-            "/query?query=%7B%22dimensions%22%3A%5B%22workspace_unit_status.label%22%2C%22workspace_unit_status.status_category%22%5D%2C%22measures%22%3A%5B%22unit.count%22%5D%2C%22filters%22%3A%5B%7B%22member%22%3A%22unit.project_id%22%2C%22operator%22%3A%22equals%22%2C%22values%22%3A%5B%227c235972-a318-430e-b83e-e0c4af6e616b%22%5D%7D%2C%7B%22member%22%3A%22unit.type%22%2C%22operator%22%3A%22equals%22%2C%22values%22%3A%5B%22ACTION%22%5D%7D%2C%7B%22member%22%3A%22unit_status.active%22%2C%22operator%22%3A%22equals%22%2C%22values%22%3A%5B%22true%22%5D%7D%5D%7D",
-            headers={
-                "Accept": '*/*',
-                "Connection": 'keep-alive',
-                "Origin": f'https://thundercats.{self.api_domain}',
-                "Priority": 'u=4',
-                "Referer": f'https://thundercats.{self.api_domain}',
-                "Sec-Fetch-Dest": 'empty',
-                "Sec-Fetch-Mode": 'cors',
-                "Sec-Fetch-Site": 'same-site',
-                "Sec-GPC": '1',
-                "TE": 'trailers'
-            },
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                if DEBUG:
-                    print("✅ Api Calls 5 successful")
-            else:
-                if DEBUG:
-                    print(f"❌ Api Calls 5 failed: {resp.status_code}")
-
-        with self.make_api_request(
             "POST",
             "k2-web",
             "/manager.message.channels.ChannelService/GetTotalUnreadMessageCount",
@@ -267,10 +242,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 6 successful")
+                    print("✅ Api Calls 5 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 6 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 5 failed: {resp.status_code}")
 
         with self.make_api_request(
             "POST",
@@ -295,10 +270,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 7 successful")
+                    print("✅ Api Calls 6 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 7 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 6 failed: {resp.status_code}")
 
         with self.make_api_request(
             "GET",
@@ -322,10 +297,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 8 successful")
+                    print("✅ Api Calls 7 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 8 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 7 failed: {resp.status_code}")
 
         with self.make_api_request(
             "GET",
@@ -347,10 +322,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 9 successful")
+                    print("✅ Api Calls 8 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 9 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 8 failed: {resp.status_code}")
 
         with self.make_api_request(
             "GET",
@@ -373,10 +348,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 10 successful")
+                    print("✅ Api Calls 9 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 10 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 9 failed: {resp.status_code}")
 
         with self.make_api_request(
             "GET",
@@ -399,10 +374,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 11 successful")
+                    print("✅ Api Calls 10 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 11 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 10 failed: {resp.status_code}")
 
         # Extract dynamic Next-Action ID from current page
         next_action_id = None
@@ -439,10 +414,10 @@ class LoadProjectPlanUser(AuthenticatedUser):
         ) as resp:
             if resp.status_code == 200:
                 if DEBUG:
-                    print("✅ Api Calls 12 successful")
+                    print("✅ Api Calls 11 successful")
             else:
                 if DEBUG:
-                    print(f"❌ Api Calls 12 failed: {resp.status_code}")
+                    print(f"❌ Api Calls 11 failed: {resp.status_code}")
 
         with self.make_api_request(
             "GET",
@@ -461,6 +436,46 @@ class LoadProjectPlanUser(AuthenticatedUser):
                 "Sec-GPC": '1',
                 "TE": 'trailers'
             },
+            catch_response=True
+        ) as resp:
+            if resp.status_code == 200:
+                if DEBUG:
+                    print("✅ Api Calls 12 successful")
+            else:
+                if DEBUG:
+                    print(f"❌ Api Calls 12 failed: {resp.status_code}")
+
+        # Extract dynamic Next-Action ID from current page
+        next_action_id = None
+        page_url = self.get_api_url("thundercats", "/v2/projects")
+        with self.client.get(page_url, catch_response=True) as page_resp:
+            if page_resp.status_code == 200:
+                next_action_id = self.extract_next_action_id(page_resp.text)
+                if DEBUG and next_action_id:
+                    print(f"✅ Extracted Next-Action ID: {next_action_id}")
+            else:
+                if DEBUG:
+                    print("⚠️ Failed to get current page for Next-Action extraction")
+
+        with self.make_api_request(
+            "POST",
+            "thundercats",
+            "/project/{projectID}/plan?phase={phaseID}&view=board".format(**self.test_data),
+            headers={
+                "Accept": 'text/x-component',
+                "Connection": 'keep-alive',
+                "Content-Type": 'text/plain;charset=UTF-8',
+                "Next-Action": next_action_id,
+                "Origin": f'https://thundercats.{self.api_domain}',
+                "Priority": 'u=4',
+                "Referer": f'https://thundercats.{self.api_domain}',
+                "Sec-Fetch-Dest": 'empty',
+                "Sec-Fetch-Mode": 'cors',
+                "Sec-Fetch-Site": 'same-origin',
+                "Sec-GPC": '1',
+                "TE": 'trailers'
+            },
+            data='[{"projectId":{"uuid":"7c235972-a318-430e-b83e-e0c4af6e616b"},"phaseId":{"uuid":"6ee23d15-5122-4788-beaa-7b3f3b3976ab"},"filters":[]}]',
             catch_response=True
         ) as resp:
             if resp.status_code == 200:
@@ -509,46 +524,6 @@ class LoadProjectPlanUser(AuthenticatedUser):
             else:
                 if DEBUG:
                     print(f"❌ Api Calls 14 failed: {resp.status_code}")
-
-        # Extract dynamic Next-Action ID from current page
-        next_action_id = None
-        page_url = self.get_api_url("thundercats", "/v2/projects")
-        with self.client.get(page_url, catch_response=True) as page_resp:
-            if page_resp.status_code == 200:
-                next_action_id = self.extract_next_action_id(page_resp.text)
-                if DEBUG and next_action_id:
-                    print(f"✅ Extracted Next-Action ID: {next_action_id}")
-            else:
-                if DEBUG:
-                    print("⚠️ Failed to get current page for Next-Action extraction")
-
-        with self.make_api_request(
-            "POST",
-            "thundercats",
-            "/project/{projectID}/plan?phase={phaseID}&view=board".format(**self.test_data),
-            headers={
-                "Accept": 'text/x-component',
-                "Connection": 'keep-alive',
-                "Content-Type": 'text/plain;charset=UTF-8',
-                "Next-Action": next_action_id,
-                "Origin": f'https://thundercats.{self.api_domain}',
-                "Priority": 'u=4',
-                "Referer": f'https://thundercats.{self.api_domain}',
-                "Sec-Fetch-Dest": 'empty',
-                "Sec-Fetch-Mode": 'cors',
-                "Sec-Fetch-Site": 'same-origin',
-                "Sec-GPC": '1',
-                "TE": 'trailers'
-            },
-            data='[{"projectId":{"uuid":"7c235972-a318-430e-b83e-e0c4af6e616b"},"phaseId":{"uuid":"6ee23d15-5122-4788-beaa-7b3f3b3976ab"},"filters":[]}]',
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                if DEBUG:
-                    print("✅ Api Calls 15 successful")
-            else:
-                if DEBUG:
-                    print(f"❌ Api Calls 15 failed: {resp.status_code}")
 
         if DEBUG:
             print("✅ Api Calls completed")

@@ -1,6 +1,0 @@
-[2025-07-22 18:04:49,349] GX00502/INFO/locust.main: Starting Locust 2.37.14
-[2025-07-22 18:04:49,350] GX00502/INFO/locust.main: Run time limit set to 15 seconds
-[2025-07-22 18:04:49,351] GX00502/INFO/locust.runners: Ramping to 1 users at a rate of 1.00 per second
-[2025-07-22 18:04:49,351] GX00502/INFO/locust.runners: All users spawned: {"LoadProjectPlanUser": 1} (1 total users)
-[2025-07-22 18:05:04,226] GX00502/INFO/locust.main: --run-time limit reached, shutting down
-[2025-07-22 18:05:04,248] GX00502/INFO/locust.main: Shutting down (exit code 1)
