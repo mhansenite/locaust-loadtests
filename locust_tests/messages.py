@@ -25,8 +25,9 @@ class MessagingLoadTest(AuthenticatedUser):
     via the gRPC-Web API that was discovered in the HAR file.
     
     Environment Variables:
-    - MESSAGE_ID: Specific message ID to test with (required)
-    - CHANNEL_ID: Specific channel ID to test with (required)
+- MESSAGE_ID: Specific message ID to test with (required)
+- CHANNEL_ID: Specific channel ID to test with (required)
+- TEST_MESSAGE_TEXT: Base text for test messages (default: "loadtest")
     """
     
     wait_time = between(2, 6)  # Wait 2-6 seconds between requests
@@ -34,7 +35,7 @@ class MessagingLoadTest(AuthenticatedUser):
     # Use environment variables directly - required
     MESSAGE_ID = os.getenv('MESSAGE_ID', "dd6ddd7e-8c25-4b5c-a59b-c8389307252a")  # Default from HAR
     CHANNEL_ID = os.getenv('CHANNEL_ID', "dd6ddd7e-8c25-4b5c-a59b-c8389307252a")  # Default from HAR
-    TEST_MESSAGE_TEXT = "loadtest"
+    TEST_MESSAGE_TEXT = os.getenv('TEST_MESSAGE_TEXT', "loadtest")  # Configurable base message text
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -539,7 +540,8 @@ class MessagingLoadTest(AuthenticatedUser):
         
         # Show configuration source
         env_channel = os.getenv('CHANNEL_ID')
-        env_message = os.getenv('MESSAGE_ID') 
+        env_message = os.getenv('MESSAGE_ID')
+        env_text = os.getenv('TEST_MESSAGE_TEXT')
         if env_channel:
             print(f"📋 Using CHANNEL_ID from environment: {env_channel}")
         else:
@@ -548,6 +550,10 @@ class MessagingLoadTest(AuthenticatedUser):
             print(f"📋 Using MESSAGE_ID from environment: {env_message}")
         else:
             print(f"📋 Using default MESSAGE_ID from HAR analysis")
+        if env_text:
+            print(f"📋 Using TEST_MESSAGE_TEXT from environment: {env_text}")
+        else:
+            print(f"📋 Using default TEST_MESSAGE_TEXT: loadtest")
     
     def on_stop(self):
         """Called when user stops"""
@@ -572,6 +578,7 @@ class MessageStressTest(AuthenticatedUser):
         # Use same environment variables as main test
         self.CHANNEL_ID = os.getenv('CHANNEL_ID', "dd6ddd7e-8c25-4b5c-a59b-c8389307252a")
         self.MESSAGE_ID = os.getenv('MESSAGE_ID', "dd6ddd7e-8c25-4b5c-a59b-c8389307252a")
+        self.TEST_MESSAGE_TEXT = os.getenv('TEST_MESSAGE_TEXT', "loadtest")
     
     @task
     def rapid_message_submission(self):
@@ -580,7 +587,7 @@ class MessageStressTest(AuthenticatedUser):
             # Generate unique test messages
             timestamp = int(time.time())
             random_id = uuid.uuid4().hex[:8]
-            test_message = f"stress-test-{timestamp}-{random_id}"
+            test_message = f"stress-{self.TEST_MESSAGE_TEXT}-{timestamp}-{random_id}"
             
             # Create dynamic gRPC payload using the same system as the main test
             grpc_payload = self._create_dynamic_payload(self.CHANNEL_ID, test_message)
