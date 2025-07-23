@@ -32,6 +32,12 @@ class MessagingLoadTest(AuthenticatedUser):
     CHANNEL_ID = "dd6ddd7e-8c25-4b5c-a59b-c8389307252a"
     TEST_MESSAGE_TEXT = "loadtest"
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Track created message IDs for cleanup
+        self.created_message_ids = []
+        self.messages_to_cleanup = []
+    
     @task(4)  # Primary task - weight 4
     def view_messaging_page(self):
         """Test viewing the messaging page with specific message/channel"""
@@ -130,10 +136,13 @@ class MessagingLoadTest(AuthenticatedUser):
                         print(f"🔍 gRPC Response Status: {response.status_code}")
                         if response.text:
                             print(f"🔍 gRPC Response Body: {response.text[:200]}...")
+                            # Try to extract message ID from the response for cleanup
+                            self._extract_message_id_from_response(response.text)
                         
                         # CRITICAL: Call LoadRecentActivity immediately after message submission
                         # This is what the HAR file shows the browser does to refresh the message list
                         self._refresh_message_list_after_submission()
+                        self.created_message_ids.append(dynamic_message) # Track created message
                     else:
                         response.failure(f"gRPC error: {grpc_message} (status: {grpc_status})")
                         print(f"❌ gRPC-level error: {grpc_message} (status: {grpc_status})")
@@ -380,6 +389,165 @@ class MessagingLoadTest(AuthenticatedUser):
         # This is the exact payload from HAR analysis that we know works
         return "AAAAAJoSJgokZGQ2ZGRkN2UtOGMyNS00YjVjLWE1OWItYzgzODkzMDcyNTJhGg88cD5sb2FkdGVzdDwvcD4iXXsidHlwZSI6ImRvYyIsImNvbnRlbnQiOlt7InR5cGUiOiJwYXJhZ3JhcGgiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJsb2FkdGVzdCJ9XX1dfTAA"
     
+    def _extract_message_id_from_response(self, response_text):
+        """Extract message ID from gRPC response for cleanup tracking"""
+        try:
+            # gRPC-Web responses are base64 encoded
+            decoded = base64.b64decode(response_text)
+            # Look for UUID patterns in the response
+            import re
+            uuid_pattern = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+            
+            # Convert to string and search for UUIDs
+            readable = ''
+            for byte in decoded:
+                if 32 <= byte <= 126:  # Printable ASCII
+                    readable += chr(byte)
+                else:
+                    readable += ' '
+            
+            found_uuids = re.findall(uuid_pattern, readable)
+            if found_uuids:
+                # The first UUID is likely the message ID
+                message_id = found_uuids[0]
+                if message_id not in self.messages_to_cleanup:
+                    self.messages_to_cleanup.append(message_id)
+                    print(f"🗂️ Tracked message ID for cleanup: {message_id}")
+                    
+        except Exception as e:
+            print(f"⚠️ Could not extract message ID from response: {e}")
+    
+    def _create_delete_message_payload(self, message_id):
+        """
+        Create gRPC payload for deleting a message.
+        Based on the HAR file: AAAAACgKJgokZTI2ZTAyYzUtYTJmZC00MDMxLTlmMWQtNzRmZmQ1MGViNDBi
+        
+        Decoded HAR structure analysis:
+        00 00 00 28 - gRPC frame header (4 bytes) + message length (40 bytes)
+        0a 26 - field 1, wire type 2, length 38
+        0a 24 - field 1, wire type 2, length 36  
+        [36 bytes: "e26e02c5-a2fd-4031-9f1d-74ffd50eb40b"] - message ID with dashes as UTF-8
+        """
+        try:
+            # The message ID is stored as UTF-8 string WITH dashes (36 characters)
+            message_id_bytes = message_id.encode('utf-8')
+            
+            # Build protobuf structure exactly like HAR:
+            # Inner field: field 1, wire type 2, length 36, message_id_string
+            inner_field = bytes([0x0a, len(message_id_bytes)]) + message_id_bytes
+            
+            # Outer field: field 1, wire type 2, length 38, inner_field
+            outer_field = bytes([0x0a, len(inner_field)]) + inner_field
+            
+            # gRPC-Web frame: 5-byte header like HAR (00 00 00 00 28)
+            frame_header = bytes([0x00, 0x00, 0x00, 0x00])  # 4-byte header
+            frame_length = bytes([len(outer_field)])         # 1-byte length (40 = 0x28)
+            
+            # Combine all parts
+            payload = frame_header + frame_length + outer_field
+            
+            # Encode as base64 for gRPC-Web-text
+            encoded_payload = base64.b64encode(payload).decode('ascii')
+            
+            print(f"🔧 Created delete payload for {message_id}: {encoded_payload}")
+            return encoded_payload
+            
+        except Exception as e:
+            print(f"❌ Error creating delete payload for {message_id}: {e}")
+            return None
+    
+    def _create_delete_payload_template(self, message_id):
+        """Fallback method using template-based payload creation"""
+        try:
+            # Use the structure from HAR but substitute the message ID
+            # Original: e26e02c5-a2fd-4031-9f1d-74ffd50eb40b
+            # Convert new message ID to the same format
+            message_id_clean = message_id.replace('-', '')
+            
+            # Build similar structure to HAR payload
+            payload_template = f"AAAAACgKJgok{message_id_clean}"
+            
+            # Convert to proper base64 format
+            return base64.b64encode(payload_template.encode()).decode('ascii')
+            
+        except Exception as e:
+            print(f"❌ Error creating template delete payload: {e}")
+            return None
+    
+    def delete_message(self, message_id):
+        """
+        Delete a specific message using the gRPC DeleteMessage API.
+        Based on HAR file analysis: /manager.message.messages.MessageService/DeleteMessage
+        """
+        try:
+            print(f"🗑️ Attempting to delete message: {message_id}")
+            
+            # Create delete payload
+            delete_payload = self._create_delete_message_payload(message_id)
+            if not delete_payload:
+                print(f"❌ Could not create delete payload for {message_id}")
+                return False
+            
+            # Headers from HAR analysis
+            headers = {
+                'Accept': 'application/grpc-web-text',
+                'Content-Type': 'application/grpc-web-text',
+                'x-grpc-web': '1'
+            }
+            
+            # Use stored authentication token
+            if self.session_data and isinstance(self.session_data, dict) and 'accessToken' in self.session_data:
+                headers['Authorization'] = f'Bearer {self.session_data["accessToken"]}'
+            else:
+                print(f"❌ No valid token for message deletion")
+                return False
+            
+            # Make request to k2-web subdomain (from HAR)
+            grpc_host = self.host.replace('app.', 'k2-web.')
+            delete_url = f"{grpc_host}/manager.message.messages.MessageService/DeleteMessage"
+            
+            response = self.client.post(
+                delete_url,
+                data=delete_payload,
+                headers=headers,
+                name='delete_message'
+            )
+            
+            if response.status_code == 200:
+                # Check for gRPC-level errors
+                grpc_status = response.headers.get('grpc-status', '0')
+                if grpc_status == '0':
+                    print(f"✅ Successfully deleted message: {message_id}")
+                    return True
+                else:
+                    grpc_message = response.headers.get('grpc-message', 'Unknown error')
+                    print(f"❌ gRPC error deleting message: {grpc_message}")
+                    return False
+            else:
+                print(f"❌ Failed to delete message. Status: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error deleting message {message_id}: {e}")
+            return False
+    
+    def cleanup_created_messages(self):
+        """Clean up all messages created during this test session"""
+        if not self.messages_to_cleanup:
+            print(f"🧹 No messages to clean up")
+            return
+        
+        print(f"🧹 Cleaning up {len(self.messages_to_cleanup)} created messages...")
+        
+        success_count = 0
+        for message_id in self.messages_to_cleanup:
+            if self.delete_message(message_id):
+                success_count += 1
+                time.sleep(0.5)  # Small delay between deletions
+        
+        print(f"🧹 Cleanup completed: {success_count}/{len(self.messages_to_cleanup)} messages deleted")
+        self.messages_to_cleanup.clear()
+    
     def on_start(self):
         """Called when user starts - authentication happens automatically"""
         super().on_start()  # This calls authenticate()
@@ -391,6 +559,8 @@ class MessagingLoadTest(AuthenticatedUser):
     def on_stop(self):
         """Called when user stops"""
         print(f"🛑 Messaging load test completed for user: {self.login_email}")
+        # Clean up created messages to avoid filling up the messaging system
+        self.cleanup_created_messages()
 
 # Additional test class for different messaging scenarios
 class MessageStressTest(AuthenticatedUser):
@@ -399,6 +569,12 @@ class MessageStressTest(AuthenticatedUser):
     """
     
     wait_time = between(1, 2)  # Faster pace for stress testing
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Track created message IDs for cleanup
+        self.created_message_ids = []
+        self.messages_to_cleanup = []
     
     @task
     def rapid_message_submission(self):
@@ -433,11 +609,99 @@ class MessageStressTest(AuthenticatedUser):
             
             if response.status_code == 200:
                 print(f"✅ Stress test message sent: {test_message}")
+                # Try to extract message ID from response for cleanup
+                if response.text:
+                    self._extract_message_id_from_response(response.text)
             else:
                 print(f"⚠️ Stress test failed: {response.status_code}")
                 
         except Exception as e:
             print(f"❌ Stress test error: {e}")
+    
+    def _extract_message_id_from_response(self, response_text):
+        """Extract message ID from gRPC response for cleanup tracking"""
+        try:
+            # gRPC-Web responses are base64 encoded
+            decoded = base64.b64decode(response_text)
+            # Look for UUID patterns in the response
+            import re
+            uuid_pattern = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+            
+            # Convert to string and search for UUIDs
+            readable = ''
+            for byte in decoded:
+                if 32 <= byte <= 126:  # Printable ASCII
+                    readable += chr(byte)
+                else:
+                    readable += ' '
+            
+            found_uuids = re.findall(uuid_pattern, readable)
+            if found_uuids:
+                # The first UUID is likely the message ID
+                message_id = found_uuids[0]
+                if message_id not in self.messages_to_cleanup:
+                    self.messages_to_cleanup.append(message_id)
+                    print(f"🗂️ Tracked stress test message ID for cleanup: {message_id}")
+                    
+        except Exception as e:
+            print(f"⚠️ Could not extract message ID from stress test response: {e}")
+    
+    def delete_message(self, message_id):
+        """
+        Delete a specific message using the gRPC DeleteMessage API.
+        Based on HAR file analysis: /manager.message.messages.MessageService/DeleteMessage
+        """
+        try:
+            print(f"🗑️ Attempting to delete stress test message: {message_id}")
+            
+            # Create delete payload (simplified version for stress test)
+            delete_payload = self._create_delete_message_payload(message_id)
+            if not delete_payload:
+                print(f"❌ Could not create delete payload for {message_id}")
+                return False
+            
+            # Headers from HAR analysis
+            headers = {
+                'Accept': 'application/grpc-web-text',
+                'Content-Type': 'application/grpc-web-text',
+                'x-grpc-web': '1'
+            }
+            
+            # Use stored authentication token
+            if self.session_data and isinstance(self.session_data, dict) and 'accessToken' in self.session_data:
+                headers['Authorization'] = f'Bearer {self.session_data["accessToken"]}'
+            else:
+                print(f"❌ No valid token for message deletion")
+                return False
+            
+            # Make request to k2-web subdomain (from HAR)
+            grpc_host = self.host.replace('app.', 'k2-web.')
+            delete_url = f"{grpc_host}/manager.message.messages.MessageService/DeleteMessage"
+            
+            response = self.client.post(
+                delete_url,
+                data=delete_payload,
+                headers=headers,
+                name='delete_stress_message'
+            )
+            
+            if response.status_code == 200:
+                # Check for gRPC-level errors
+                grpc_status = response.headers.get('grpc-status', '0')
+                if grpc_status == '0':
+                    print(f"✅ Successfully deleted stress test message: {message_id}")
+                    return True
+                else:
+                    grpc_message = response.headers.get('grpc-message', 'Unknown error')
+                    print(f"❌ gRPC error deleting stress test message: {grpc_message}")
+                    return False
+            else:
+                print(f"❌ Failed to delete stress test message. Status: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error deleting stress test message {message_id}: {e}")
+            return False
     
     def _create_dynamic_payload(self, message_text):
         """Create dynamic gRPC payload for stress testing"""
@@ -476,6 +740,60 @@ class MessageStressTest(AuthenticatedUser):
         payload = bytes([0x00]) + struct.pack('>I', len(message_body)) + message_body
         
         return base64.b64encode(payload).decode('ascii')
+
+    def _create_delete_message_payload(self, message_id):
+        """Create gRPC payload for deleting a message (corrected version for stress test)"""
+        try:
+            # Use the same corrected structure as the main test
+            # The message ID is stored as UTF-8 string WITH dashes (36 characters)
+            message_id_bytes = message_id.encode('utf-8')
+            
+            # Build protobuf structure exactly like HAR:
+            # Inner field: field 1, wire type 2, length 36, message_id_string
+            inner_field = bytes([0x0a, len(message_id_bytes)]) + message_id_bytes
+            
+            # Outer field: field 1, wire type 2, length 38, inner_field
+            outer_field = bytes([0x0a, len(inner_field)]) + inner_field
+            
+            # gRPC-Web frame: 5-byte header like HAR (00 00 00 00 28)
+            frame_header = bytes([0x00, 0x00, 0x00, 0x00])  # 4-byte header
+            frame_length = bytes([len(outer_field)])         # 1-byte length (40 = 0x28)
+            
+            # Combine all parts
+            payload = frame_header + frame_length + outer_field
+            
+            # Encode as base64 for gRPC-Web-text
+            encoded_payload = base64.b64encode(payload).decode('ascii')
+            
+            print(f"🔧 Created stress test delete payload for {message_id}: {encoded_payload}")
+            return encoded_payload
+            
+        except Exception as e:
+            print(f"❌ Error creating stress test delete payload: {e}")
+            return None
+    
+    def cleanup_created_messages(self):
+        """Clean up all messages created during this stress test session"""
+        if not self.messages_to_cleanup:
+            print(f"🧹 No stress test messages to clean up")
+            return
+        
+        print(f"🧹 Cleaning up {len(self.messages_to_cleanup)} stress test messages...")
+        
+        success_count = 0
+        for message_id in self.messages_to_cleanup:
+            if self.delete_message(message_id):
+                success_count += 1
+                time.sleep(0.2)  # Shorter delay for stress test cleanup
+        
+        print(f"🧹 Stress test cleanup completed: {success_count}/{len(self.messages_to_cleanup)} messages deleted")
+        self.messages_to_cleanup.clear()
+    
+    def on_stop(self):
+        """Called when stress test user stops"""
+        print(f"🛑 Stress test completed for user: {self.login_email}")
+        # Clean up created messages to avoid filling up the messaging system
+        self.cleanup_created_messages()
 
 # Test runner for development
 if __name__ == "__main__":
