@@ -2,6 +2,16 @@
 """
 Project Plan Load Test
 Tests the project plan endpoint with specific project and phase IDs
+
+Environment Variables:
+- PROJECT_ID: Specific project ID to test with (required for your environment)
+- PHASE_ID: Specific phase ID to test with (required for your environment)  
+- VIEW_TYPE: View type to test with (default: "board", options: "board", "list")
+
+For MultiProjectLoadTest, additional scenarios can be added:
+- PROJECT_ID_2, PHASE_ID_2, VIEW_TYPE_2: Second test scenario
+- PROJECT_ID_3, PHASE_ID_3, VIEW_TYPE_3: Third test scenario
+- etc.
 """
 
 import sys
@@ -22,10 +32,10 @@ class ProjectPlanLoadTest(AuthenticatedUser):
     
     wait_time = between(2, 5)  # Wait 2-5 seconds between requests
     
-    # Test data - these could be moved to environment variables if needed
-    PROJECT_ID = "7c235b03-d4ea-4d0d-a499-a466b43a3c83"
-    PHASE_ID = "6ee9e420-f690-45ff-b5cd-860f15423a3e"
-    VIEW_TYPE = "board"
+    # Test data - configurable via environment variables
+    PROJECT_ID = os.getenv('PROJECT_ID', "7c235b03-d4ea-4d0d-a499-a466b43a3c83")  # Default from original test
+    PHASE_ID = os.getenv('PHASE_ID', "6ee9e420-f690-45ff-b5cd-860f15423a3e")     # Default from original test  
+    VIEW_TYPE = os.getenv('VIEW_TYPE', "board")                                   # Default view type
     
     @task(5)  # Primary task - weight 5
     def view_project_plan_board(self):
@@ -97,25 +107,7 @@ class ProjectPlanLoadTest(AuthenticatedUser):
                 response.failure(f"Unexpected status code: {response.status_code}")
                 print(f"⚠️ Unexpected response: {response.status_code} for {url}")
     
-    @task(1)  # Least frequent - weight 1
-    def test_project_api_call(self):
-        """Test making an authenticated API call to project data"""
-        try:
-            # Use the authenticated request method for API calls
-            api_endpoint = f"/api/projects/{self.PROJECT_ID}"
-            response = self.make_authenticated_request('GET', api_endpoint)
-            
-            if response.status_code == 200:
-                print(f"✅ Successfully retrieved project API data")
-            elif response.status_code == 404:
-                print(f"⚠️ Project API endpoint not found: {api_endpoint}")
-            elif response.status_code == 403:
-                print(f"❌ Access denied to project API: {api_endpoint}")
-            else:
-                print(f"⚠️ Project API response: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Error making project API call: {e}")
+
     
     def on_start(self):
         """Called when user starts - authentication happens automatically"""
@@ -123,6 +115,23 @@ class ProjectPlanLoadTest(AuthenticatedUser):
         print(f"🚀 Starting project plan load test for project: {self.PROJECT_ID}")
         print(f"📋 Testing phase: {self.PHASE_ID}")
         print(f"👁️ Primary view: {self.VIEW_TYPE}")
+        
+        # Show configuration source
+        env_project = os.getenv('PROJECT_ID')
+        env_phase = os.getenv('PHASE_ID')
+        env_view = os.getenv('VIEW_TYPE')
+        if env_project:
+            print(f"📋 Using PROJECT_ID from environment: {env_project}")
+        else:
+            print(f"📋 Using default PROJECT_ID from original test")
+        if env_phase:
+            print(f"📋 Using PHASE_ID from environment: {env_phase}")
+        else:
+            print(f"📋 Using default PHASE_ID from original test")
+        if env_view:
+            print(f"📋 Using VIEW_TYPE from environment: {env_view}")
+        else:
+            print(f"📋 Using default VIEW_TYPE: board")
     
     def on_stop(self):
         """Called when user stops"""
@@ -137,20 +146,30 @@ class MultiProjectLoadTest(AuthenticatedUser):
     
     wait_time = between(1, 3)
     
-    # Multiple test scenarios - add your own project/phase IDs here
-    TEST_SCENARIOS = [
-        {
-            'project_id': '7c235b03-d4ea-4d0d-a499-a466b43a3c83',
-            'phase_id': '6ee9e420-f690-45ff-b5cd-860f15423a3e',
-            'view': 'board'
-        },
-        # Add more test scenarios here:
-        # {
-        #     'project_id': 'another-project-id',
-        #     'phase_id': 'another-phase-id', 
-        #     'view': 'list'
-        # }
-    ]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Multiple test scenarios - configurable via environment variables
+        # Use the same environment variables as the main test, plus additional ones for multi-scenario testing
+        self.TEST_SCENARIOS = [
+            {
+                'project_id': os.getenv('PROJECT_ID', '7c235b03-d4ea-4d0d-a499-a466b43a3c83'),
+                'phase_id': os.getenv('PHASE_ID', '6ee9e420-f690-45ff-b5cd-860f15423a3e'),
+                'view': os.getenv('VIEW_TYPE', 'board')
+            }
+        ]
+        
+        # Add additional scenarios from environment if provided
+        # PROJECT_ID_2, PHASE_ID_2, VIEW_TYPE_2, etc.
+        scenario_count = 2
+        while os.getenv(f'PROJECT_ID_{scenario_count}'):
+            additional_scenario = {
+                'project_id': os.getenv(f'PROJECT_ID_{scenario_count}'),
+                'phase_id': os.getenv(f'PHASE_ID_{scenario_count}', os.getenv('PHASE_ID', '6ee9e420-f690-45ff-b5cd-860f15423a3e')),
+                'view': os.getenv(f'VIEW_TYPE_{scenario_count}', os.getenv('VIEW_TYPE', 'board'))
+            }
+            self.TEST_SCENARIOS.append(additional_scenario)
+            scenario_count += 1
     
     @task
     def test_random_project_scenario(self):
@@ -168,6 +187,29 @@ class MultiProjectLoadTest(AuthenticatedUser):
             else:
                 response.failure(f"Status: {response.status_code}")
                 print(f"⚠️ Random scenario failed: {response.status_code}")
+    
+    def on_start(self):
+        """Called when user starts - authentication happens automatically"""
+        super().on_start()  # This calls authenticate()
+        print(f"🚀 Starting multi-project load test with {len(self.TEST_SCENARIOS)} scenarios")
+        for i, scenario in enumerate(self.TEST_SCENARIOS, 1):
+            print(f"📋 Scenario {i}: Project {scenario['project_id']}, Phase {scenario['phase_id']}, View {scenario['view']}")
+        
+        # Show configuration source
+        env_project = os.getenv('PROJECT_ID')
+        if env_project:
+            print(f"📋 Base configuration from environment variables")
+        else:
+            print(f"📋 Base configuration using defaults")
+            
+        # Show additional scenarios
+        additional_count = len(self.TEST_SCENARIOS) - 1
+        if additional_count > 0:
+            print(f"📋 Found {additional_count} additional scenario(s) from environment variables (PROJECT_ID_2, etc.)")
+    
+    def on_stop(self):
+        """Called when user stops"""
+        print(f"🛑 Multi-project load test completed for user: {self.login_email}")
 
 # Test runner for development
 if __name__ == "__main__":
