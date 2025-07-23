@@ -34,10 +34,28 @@ class LoadProjectsUser(AuthenticatedUser):
     """
     User focused on loadprojects activities.
     Standalone version for direct Locust execution.
+    
+    Uses CSV-driven host configuration from base authentication class.
     """
     
     # Relative weight when multiple user classes exist
     weight = 2
+    
+    # Primary subdomain for this workflow (determined from HAR file)
+    primary_subdomain = "thundercats"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Extract domain from CSV data (already set by base class)
+        if hasattr(self, 'test_data') and 'domain' in self.test_data:
+            self.api_domain = self.test_data['domain']
+        else:
+            # Fallback to DOMAIN_SUFFIX
+            self.api_domain = DOMAIN_SUFFIX
+            
+        if DEBUG:
+            print(f"{self.__class__.__name__} using domain: {self.api_domain}")
 
     @task(weight=3)
     def pageload(self):
@@ -48,22 +66,15 @@ class LoadProjectsUser(AuthenticatedUser):
         if DEBUG:
             print("🔄 Page Load...")
 
-        # Get router state from auth base (captured during login)
-        router_state_tree = self.get_current_router_state()
-        if DEBUG and router_state_tree:
-            print(f"✅ Using router state from auth (length: {len(router_state_tree)})")
-        elif DEBUG:
-            print("⚠️ No router state available from auth")
-
-        with self.client.get(
+        with self.make_api_request(
+            "GET",
+            "thundercats",
             "/v2/projects",
             headers={
                 "Accept": '*/*',
-                "Host": f'app.{DOMAIN_SUFFIX}',
-                "Next-Router-State-Tree": router_state_tree,
                 "Priority": 'u=4',
                 "RSC": '1',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-origin',
@@ -91,14 +102,15 @@ class LoadProjectsUser(AuthenticatedUser):
         if DEBUG:
             print("🔄 Api Calls...")
 
-        with self.client.get(
-            f"https://app.{DOMAIN_SUFFIX}/auth/session",
+        with self.make_api_request(
+            "GET",
+            "app",
+            "/auth/session",
             headers={
                 "Accept": 'application/json',
-                "Host": f'app.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -114,14 +126,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Api Calls 1 failed: {resp.status_code}")
 
-        with self.client.get(
-            f"https://app.{DOMAIN_SUFFIX}/auth/session",
+        with self.make_api_request(
+            "GET",
+            "app",
+            "/auth/session",
             headers={
                 "Accept": 'application/json',
-                "Host": f'app.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -137,14 +150,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Api Calls 2 failed: {resp.status_code}")
 
-        with self.client.get(
-            f"https://app.{DOMAIN_SUFFIX}/auth/session",
+        with self.make_api_request(
+            "GET",
+            "app",
+            "/auth/session",
             headers={
                 "Accept": 'application/json',
-                "Host": f'app.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -160,14 +174,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Api Calls 3 failed: {resp.status_code}")
 
-        with self.client.get(
-            f"https://app.{DOMAIN_SUFFIX}/auth/session",
+        with self.make_api_request(
+            "GET",
+            "app",
+            "/auth/session",
             headers={
                 "Accept": 'application/json',
-                "Host": f'app.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -182,57 +197,6 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Api Calls 4 failed: {resp.status_code}")
 
-        with self.client.get(
-            "https://streaming.split.io/sse?channels=MjQ2OTYxMTc2Nw%3D%3D_MTI4MjY3MDc0Mg%3D%3D_control,MjQ2OTYxMTc2Nw%3D%3D_MTI4MjY3MDc0Mg%3D%3D_mySegments,MjQ2OTYxMTc2Nw%3D%3D_MTI4MjY3MDc0Mg%3D%3D_splits,%5B%3Foccupancy%3Dmetrics.publishers%5Dcontrol_pri,%5B%3Foccupancy%3Dmetrics.publishers%5Dcontrol_sec&accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6IkRQVkE3QS44czhnaVEiLCJ0eXAiOiJKV1QifQ.eyJ4LWFibHktY2FwYWJpbGl0eSI6IntcIk1qUTJPVFl4TVRjMk53PT1fTVRJNE1qWTNNRGMwTWc9PV9jb250cm9sXCI6W1wic3Vic2NyaWJlXCJdLFwiTWpRMk9UWXhNVGMyTnc9PV9NVEk0TWpZM01EYzBNZz09X215U2VnbWVudHNcIjpbXCJzdWJzY3JpYmVcIl0sXCJNalEyT1RZeE1UYzJOdz09X01USTRNalkzTURjME1nPT1fc3BsaXRzXCI6W1wic3Vic2NyaWJlXCJdLFwiY29udHJvbF9wcmlcIjpbXCJzdWJzY3JpYmVcIixcImNoYW5uZWwtbWV0YWRhdGE6cHVibGlzaGVyc1wiXSxcImNvbnRyb2xfc2VjXCI6W1wic3Vic2NyaWJlXCIsXCJjaGFubmVsLW1ldGFkYXRhOnB1Ymxpc2hlcnNcIl19IiwieC1hYmx5LWNsaWVudElkIjoiY2xpZW50SWQiLCJleHAiOjE3NTMxNDgxNzAsImlhdCI6MTc1MzE0NDU3MH0.8et0NHpFWJDGL-zethA99wq9KLmh3cB4KVfroWUyg9E&v=1.1&heartbeats=true&SplitSDKVersion=react-1.11.1&SplitSDKClientKey=5c0p",
-            headers={
-                "Accept": 'text/event-stream',
-                "Cache-Control": 'no-cache',
-                "Host": 'streaming.split.io',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
-                "Pragma": 'no-cache',
-                "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
-                "Sec-Fetch-Dest": 'empty',
-                "Sec-Fetch-Mode": 'cors',
-                "Sec-Fetch-Site": 'cross-site',
-                "Sec-GPC": '1',
-                "TE": 'trailers'
-            },
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                if DEBUG:
-                    print("✅ Api Calls 5 successful")
-            else:
-                if DEBUG:
-                    print(f"❌ Api Calls 5 failed: {resp.status_code}")
-
-        with self.client.get(
-            "https://sdk.split.io/api/splitChanges?since=1753135864962",
-            headers={
-                "Accept": 'application/json',
-                "Content-Type": 'application/json',
-                "Host": 'sdk.split.io',
-                "If-Modified-Since": 'Mon, 21 Jul 2025 22:11:04 GMT',
-                "If-None-Match": '"1753135864962"',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
-                "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
-                "Sec-Fetch-Dest": 'empty',
-                "Sec-Fetch-Mode": 'cors',
-                "Sec-Fetch-Site": 'cross-site',
-                "Sec-GPC": '1',
-                "SplitSDKVersion": 'react-1.11.1'
-            },
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                if DEBUG:
-                    print("✅ Api Calls 6 successful")
-            else:
-                if DEBUG:
-                    print(f"❌ Api Calls 6 failed: {resp.status_code}")
-
         if DEBUG:
             print("✅ Api Calls completed")
 
@@ -245,14 +209,15 @@ class LoadProjectsUser(AuthenticatedUser):
         if DEBUG:
             print("🔄 Filters...")
 
-        with self.client.post(
-            f"https://k2-web.{DOMAIN_SUFFIX}/manager.project.project_list.ProjectListService/LoadTagsDropdown",
+        with self.make_api_request(
+            "POST",
+            "k2-web",
+            "/manager.project.project_list.ProjectListService/LoadTagsDropdown",
             headers={
                 "Accept": 'application/grpc-web-text',
-                "Host": f'k2-web.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -271,14 +236,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Filters 1 failed: {resp.status_code}")
 
-        with self.client.post(
-            f"https://k2-web.{DOMAIN_SUFFIX}/manager.project.project_list.ProjectListService/LoadProjectManagersDropdown",
+        with self.make_api_request(
+            "POST",
+            "k2-web",
+            "/manager.project.project_list.ProjectListService/LoadProjectManagersDropdown",
             headers={
                 "Accept": 'application/grpc-web-text',
-                "Host": f'k2-web.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -297,14 +263,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Filters 2 failed: {resp.status_code}")
 
-        with self.client.post(
-            f"https://k2-web.{DOMAIN_SUFFIX}/manager.project.project_list.ProjectListService/LoadActiveMilestonesDropdown",
+        with self.make_api_request(
+            "POST",
+            "k2-web",
+            "/manager.project.project_list.ProjectListService/LoadActiveMilestonesDropdown",
             headers={
                 "Accept": 'application/grpc-web-text',
-                "Host": f'k2-web.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -323,14 +290,15 @@ class LoadProjectsUser(AuthenticatedUser):
                 if DEBUG:
                     print(f"❌ Filters 3 failed: {resp.status_code}")
 
-        with self.client.post(
-            f"https://k2-web.{DOMAIN_SUFFIX}/manager.project.project_list.ProjectListService/LoadProjectStatusesDropdown",
+        with self.make_api_request(
+            "POST",
+            "k2-web",
+            "/manager.project.project_list.ProjectListService/LoadProjectStatusesDropdown",
             headers={
                 "Accept": 'application/grpc-web-text',
-                "Host": f'k2-web.{DOMAIN_SUFFIX}',
-                "Origin": f'https://app.{DOMAIN_SUFFIX}',
+                "Origin": f'https://thundercats.{self.api_domain}',
                 "Priority": 'u=4',
-                "Referer": f'https://app.{DOMAIN_SUFFIX}',
+                "Referer": f'https://thundercats.{self.api_domain}',
                 "Sec-Fetch-Dest": 'empty',
                 "Sec-Fetch-Mode": 'cors',
                 "Sec-Fetch-Site": 'same-site',
@@ -358,10 +326,10 @@ class LoadProjectsUser(AuthenticatedUser):
 
 if __name__ == "__main__":
     print(f"""
-LoadProjects Workflow
+{workflow_name} Workflow
 
 Usage:
-   locust -f workflows/load_projects_user.py
+   locust -f {relative_path}
 
 Configuration:
    export TEST_DATA_CSV=config/test_data_staging.csv
@@ -370,12 +338,12 @@ Configuration:
 
 Example Commands:
    # Basic test
-   locust -f workflows/load_projects_user.py --headless --users=5 --spawn-rate=1 --run-time=30s
+   locust -f {relative_path} --headless --users=5 --spawn-rate=1 --run-time=30s
 
    # With specific CSV data
    export TEST_DATA_CSV=config/test_data_production.csv
-   locust -f workflows/load_projects_user.py --headless --users=3 --spawn-rate=1 --run-time=15s
+   locust -f {relative_path} --headless --users=3 --spawn-rate=1 --run-time=15s
 
    # Web UI mode
-   locust -f workflows/load_projects_user.py
+   locust -f {relative_path}
     """)

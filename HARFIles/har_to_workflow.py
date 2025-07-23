@@ -244,6 +244,7 @@ class HARWorkflowGenerator:
         assets_filtered = 0
         server_actions_filtered = 0
         prefetch_filtered = 0
+        external_services_filtered = 0
         
         for req in requests:
             url = req['url']
@@ -266,6 +267,10 @@ class HARWorkflowGenerator:
                 prefetch_filtered += 1
                 continue
             
+            # Skip external services that aren't core to application functionality
+            if self._is_external_service(url, method):
+                external_services_filtered += 1
+                continue
 
             
             # Categorize meaningful requests
@@ -289,6 +294,9 @@ class HARWorkflowGenerator:
         
         if prefetch_filtered > 0:
             print(f"🚫 Filtered out {prefetch_filtered} problematic router prefetch requests (often cause 404/500 errors)")
+        
+        if external_services_filtered > 0:
+            print(f"🌐 Filtered out {external_services_filtered} external/analytics requests (non-guidecx domains + analytics endpoints)")
                 
         # Remove empty groups
         return {k: v for k, v in grouped.items() if v}
@@ -442,6 +450,35 @@ class HARWorkflowGenerator:
                 
         return False
     
+    def _is_external_service(self, url: str, method: str) -> bool:
+        """
+        Determine if request is to external services that should be filtered out.
+        Filter out ALL non-guidecx domains completely, just like static assets.
+        """
+        # For relative URLs, assume they're internal guidecx requests
+        if not url.startswith('https://') and not url.startswith('http://'):
+            return False
+        
+        # Parse the URL to get the domain
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            
+            # Keep only domains that contain 'guidecx'
+            if 'guidecx' in domain:
+                # Filter out specific analytics endpoints that require special authentication
+                # These typically require API keys that aren't available in load testing
+                if 'api.' in domain and '/query?query=' in url and 'dimensions' in url:
+                    return True  # Filter out analytics query endpoints
+                return False  # Keep all other guidecx domains
+            else:
+                return True   # Filter out all external domains
+                
+        except Exception:
+            # If URL parsing fails, assume it's external and filter it out
+            return True
+    
 
     def _is_data_refresh(self, url: str, method: str, data: str) -> bool:
         """Determine if request is for data refresh (excluding server actions)"""
@@ -533,7 +570,7 @@ class HARWorkflowGenerator:
         config_lines.append('CSV_FILE_PATH = os.getenv("TEST_DATA_CSV", "config/test_data_staging.csv")')
         config_lines.append("")
         config_lines.append("def load_test_data():")
-        config_lines.append('    """Load test data from CSV file"""')
+        config_lines.append('    """Load test data from CSV file and filter for guidecx domains only"""')
         config_lines.append("    try:")
         config_lines.append("        # Adjust path relative to where Locust is run from")
         config_lines.append("        if not os.path.isabs(CSV_FILE_PATH):")
@@ -549,10 +586,29 @@ class HARWorkflowGenerator:
         config_lines.append("            ")
         config_lines.append("        with open(csv_path, 'r') as f:")
         config_lines.append("            reader = csv.DictReader(f)")
-        config_lines.append("            data = list(reader)")
-        config_lines.append("            if not data:")
+        config_lines.append("            all_data = list(reader)")
+        config_lines.append("            if not all_data:")
         config_lines.append('                raise ValueError("CSV file is empty")')
-        config_lines.append("            return data")
+        config_lines.append("            ")
+        config_lines.append("            # Filter to only include domains that contain 'guidecx'")
+        config_lines.append("            filtered_data = []")
+        config_lines.append("            for row in all_data:")
+        config_lines.append("                domain = row.get('domain', '')")
+        config_lines.append("                if 'guidecx' in domain.lower():")
+        config_lines.append("                    # Update domain to use the configured DOMAIN_SUFFIX")
+        config_lines.append("                    row['domain'] = DOMAIN_SUFFIX")
+        config_lines.append("                    filtered_data.append(row)")
+        config_lines.append("                else:")
+        config_lines.append("                    if DEBUG:")
+        config_lines.append("                        print(f'Filtering out domain: {domain} (does not contain \"guidecx\")')")
+        config_lines.append("            ")
+        config_lines.append("            if not filtered_data:")
+        config_lines.append('                raise ValueError("No domains containing \'guidecx\' found in CSV data")')
+        config_lines.append("                ")
+        config_lines.append("            if DEBUG:")
+        config_lines.append("                print(f'Loaded {len(filtered_data)} rows with guidecx domains (filtered from {len(all_data)} total)')")
+        config_lines.append("                ")
+        config_lines.append("            return filtered_data")
         config_lines.append("    except FileNotFoundError:")
         config_lines.append(f'        print(f"\\n❌ CSV file not found: {{CSV_FILE_PATH}}")')
         
@@ -622,24 +678,70 @@ class HARWorkflowGenerator:
         headers = req.get('headers', {})
         data = req.get('data')
         
-        # Generate environment-aware URL
-        url_var = self._generate_environment_aware_url(url)
-            
+        # Check if this is a guidecx domain or external domain
+        is_guidecx_domain = False
+        subdomain = 'app'  # default subdomain for guidecx domains
+        path = url
+        
+        # Determine if this is a guidecx domain that should use make_api_request
+        host_header = headers.get('Host', '')
+        if host_header and 'guidecx' in host_header.lower():
+            is_guidecx_domain = True
+            subdomain = host_header.split('.')[0].lower()
+            # For host header case, path is the original url (might be relative)
+            if not url.startswith('https://'):
+                path = self._filter_session_parameters(url)
+            else:
+                # Extract path from absolute URL
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                path = parsed.path
+                if parsed.query:
+                    path += f"?{parsed.query}"
+        elif url.startswith('https://') and 'guidecx' in url.lower():
+            is_guidecx_domain = True
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            path = parsed.path
+            if parsed.query:
+                path += f"?{parsed.query}"
+            if parsed.netloc and '.' in parsed.netloc:
+                subdomain = parsed.netloc.split('.')[0].lower()
+        elif not url.startswith('https://'):
+            # Relative URL - assume it's for guidecx domain
+            is_guidecx_domain = True
+            path = self._filter_session_parameters(url)
+        
+        # Ensure path is actually a path and not a full URL
+        if is_guidecx_domain and path.startswith('https://'):
+            # If path still contains full URL, extract just the path portion
+            from urllib.parse import urlparse
+            parsed = urlparse(path)
+            path = parsed.path
+            if parsed.query:
+                path += f"?{parsed.query}"
+        
         # Generate headers dict and check if dynamic extraction is needed
-        headers_code, needs_dynamic_action, needs_dynamic_router_state = self._generate_headers_dict(headers, method)
+        headers_code, needs_dynamic_action = self._generate_headers_dict(headers, method)
+        
+        # For guidecx domains, remove Host header since make_api_request will add it
+        if is_guidecx_domain and headers_code and '"Host"' in headers_code:
+            lines = headers_code.split('\n')
+            filtered_lines = [line for line in lines if '"Host"' not in line]
+            headers_code = '\n'.join(filtered_lines)
+            headers_code = headers_code.replace(',\n            }', '\n            }')
         
         # Generate request code
         code = []
         
-
-        
         # If this request needs dynamic Next-Action, first extract it
         if needs_dynamic_action and method == 'post':
             # Generate code to extract Next-Action ID from current page
-            current_page_url = self._get_page_url_for_action(url)
+            # Use the workflow's primary subdomain for Next-Action extraction
+            primary_subdomain = self._determine_primary_subdomain()
             code.append('        # Extract dynamic Next-Action ID from current page')
             code.append('        next_action_id = None')
-            code.append(f'        page_url = f"{current_page_url}"')
+            code.append(f'        page_url = self.get_api_url("{primary_subdomain}", "/v2/projects")')
             code.append('        with self.client.get(page_url, catch_response=True) as page_resp:')
             code.append('            if page_resp.status_code == 200:')
             code.append('                next_action_id = self.extract_next_action_id(page_resp.text)')
@@ -649,37 +751,58 @@ class HARWorkflowGenerator:
             code.append('                if DEBUG:')
             code.append('                    print("⚠️ Failed to get current page for Next-Action extraction")')
             code.append('')
-            
-        # If this request needs dynamic router state, use state from auth base
-        if needs_dynamic_router_state:
-            code.append('        # Get router state from auth base (captured during login)')
-            code.append('        router_state_tree = self.get_current_router_state()')
-            code.append('        if DEBUG and router_state_tree:')
-            code.append('            print(f"✅ Using router state from auth (length: {len(router_state_tree)})")')
-            code.append('        elif DEBUG:')
-            code.append('            print("⚠️ No router state available from auth")')
-            code.append('')
-            
-        code.append(f'        with self.client.{method}(')
-        code.append(f'            {url_var},')
         
-        if headers_code:
-            code.append(f'            headers={headers_code},')
+        if is_guidecx_domain:
+            # GuideX domain - use make_api_request with dynamic subdomain
+            path = self._make_project_ids_configurable(path)
             
-        if data:
-            if isinstance(data, str):
-                code.append(f'            data={repr(data)},')
+            # Determine if we need to use CSV template variables in the path
+            has_csv_vars = '{' in path and '}' in path
+            if has_csv_vars:
+                path_var = f'"{path}".format(**self.test_data)'
             else:
-                code.append(f'            data={data},')
+                path_var = f'"{path}"'
                 
-        code.append('            catch_response=True')
-        code.append('        ) as resp:')
-        code.append('            if resp.status_code == 200:')
-        code.append('                if DEBUG:')
-        code.append(f'                    print("✅ {request_name.replace("_", " ").title()} successful")')
-        code.append('            else:')
-        code.append('                if DEBUG:')
-        code.append(f'                    print(f"❌ {request_name.replace("_", " ").title()} failed: {{resp.status_code}}")')
+            # Use the make_api_request method for guidecx domains
+            code.append(f'        with self.make_api_request(')
+            code.append(f'            "{method.upper()}",')
+            code.append(f'            "{subdomain}",')
+            code.append(f'            {path_var},')
+            
+            if headers_code and headers_code.strip() not in ['{}', '{\n            }']:
+                code.append(f'            headers={headers_code},')
+                
+            if data:
+                if isinstance(data, str):
+                    code.append(f'            data={repr(data)},')
+                else:
+                    code.append(f'            data={data},')
+                    
+            code.append('            catch_response=True')
+            code.append('        ) as resp:')
+        else:
+            # External domain detected - this should not happen as all external domains are filtered out
+            print(f"⚠️ WARNING: External domain request found: {url}")
+            print("   This should have been filtered out by _is_external_service()")
+            print("   Skipping this request to avoid external domain calls")
+            
+            # Return empty code block - effectively skips this request
+            code.append('        # External domain request skipped (filtered out)')
+            code.append('        if DEBUG:')
+            code.append(f'            print("⚠️ Skipped external domain request: {url[:50]}...")')
+            
+            # Add a pass statement to make the generated code valid
+            code.append('        pass')
+        
+        # Only add response handling for actual HTTP requests (guidecx domains)
+        if is_guidecx_domain:
+            # Common response handling
+            code.append('            if resp.status_code == 200:')
+            code.append('                if DEBUG:')
+            code.append(f'                    print("✅ {request_name.replace("_", " ").title()} successful")')
+            code.append('            else:')
+            code.append('                if DEBUG:')
+            code.append(f'                    print(f"❌ {request_name.replace("_", " ").title()} failed: {{resp.status_code}}")')
         
         return code
     
@@ -755,20 +878,22 @@ class HARWorkflowGenerator:
         """
         # Map known subdomains to the correct ones
         subdomain_mapping = {
-            'thundercats': 'app',     # Legacy subdomain → current app subdomain
             'app': 'app',             # Keep app as-is
             'arches': 'arches',       # Keep arches as-is (auth system)
             'api': 'api',             # Keep api as-is
+            'k2-web': 'k2-web',       # Keep k2-web as-is (gRPC services)
+            'thundercats': 'thundercats',  # Keep thundercats as-is (specific app instance)
         }
         
+        # If it's a known subdomain, use the mapping, otherwise keep original
         normalized = subdomain_mapping.get(subdomain.lower(), subdomain)
-        if normalized != subdomain:
+        if normalized != subdomain and subdomain.lower() in subdomain_mapping:
             print(f"🔧 Normalized subdomain: {subdomain} → {normalized}")
         
         return normalized
     
     def _generate_environment_aware_url(self, url: str) -> str:
-        """Convert absolute URLs to environment-aware template variables using DOMAIN_SUFFIX and CSV data"""
+        """Convert absolute URLs to environment-aware template variables using CSV domain data"""
         if not url.startswith('https://'):
             # Relative URL - filter session parameters and make configurable
             filtered_url = self._filter_session_parameters(url)
@@ -787,76 +912,86 @@ class HARWorkflowGenerator:
         query = f"?{parsed.query}" if parsed.query else ""
         fragment = f"#{parsed.fragment}" if parsed.fragment else ""
         
+        # Only convert domains that contain 'guidecx' - all others are external services
+        is_guidecx_domain = 'guidecx' in domain
+        
+        if not is_guidecx_domain:
+            # External domain (intercom.io, split.io, etc.) - keep as absolute URL without conversion
+            return f'"{filtered_url}"'
+        
         # Make project IDs configurable in the path
         configurable_path = self._make_project_ids_configurable(path)
         configurable_query = self._make_project_ids_configurable(query)
         
-        # Check if this looks like a GuideX domain (has a subdomain pattern)
-        if ('.' in domain and 
-            (domain.endswith('.guidecx.com') or 
-             domain.endswith('.guidecx.io') or 
-             'guidecx' in domain)):
-            
+        # This is a GuideX domain, convert it to use api_domain
+        if '.' in domain:
             # Extract and normalize the subdomain (everything before the first dot)
             subdomain = domain.split('.')[0]
             normalized_subdomain = self._normalize_subdomain(subdomain)
             
+            # Always use absolute URLs for non-auth subdomains to ensure correct routing
             # Check if we have CSV template variables
             has_csv_vars = (configurable_path != path or configurable_query != query)
             
             if has_csv_vars:
                 # Use .format() for CSV data substitution (avoid f-string conflicts)
-                full_url = f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}{configurable_path}{configurable_query}{fragment}"
-                return f'"{full_url}".format(**self.test_data)'
+                full_url = f"https://{normalized_subdomain}.{{self.api_domain}}{configurable_path}{configurable_query}{fragment}"
+                return f'f"{full_url}".format(**self.test_data)'
             else:
-                return f'f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}{path}{query}{fragment}"'
+                return f'f"https://{normalized_subdomain}.{{self.api_domain}}{path}{query}{fragment}"'
         else:
-            # External domain - keep as absolute URL
+            # Domain without subdomain structure - keep as-is
             if configurable_path != path or configurable_query != query:
                 # Has CSV variables
                 full_url = f"https://{domain}{configurable_path}{configurable_query}{fragment}"
                 return f'"{full_url}".format(**self.test_data)'
             else:
-                return f'"{url}"'
+                return f'"{filtered_url}"'
     
     def _generate_environment_aware_host(self, host: str) -> str:
-        """Convert host headers to use environment-aware domain variables using DOMAIN_SUFFIX"""
+        """Convert host headers to use environment-aware domain variables using CSV domain data"""
         host_lower = host.lower()
         
-        # Check if this looks like a GuideX domain
-        if ('.' in host_lower and 
-            (host_lower.endswith('.guidecx.com') or 
-             host_lower.endswith('.guidecx.io') or 
-             'guidecx' in host_lower)):
-            
+        # Only convert domains that contain 'guidecx' - all others are external services
+        is_guidecx_domain = 'guidecx' in host_lower
+        
+        if not is_guidecx_domain:
+            # External domain (intercom.io, split.io, etc.) - keep as-is
+            return host
+        
+        # This is a GuideX domain, convert it to use api_domain
+        if '.' in host_lower:
             # Extract and normalize the subdomain (everything before the first dot)
             subdomain = host_lower.split('.')[0]
             normalized_subdomain = self._normalize_subdomain(subdomain)
-            return f"{normalized_subdomain}.{{DOMAIN_SUFFIX}}"
+            return f"{normalized_subdomain}.{{self.api_domain}}"
         else:
-            # External host - keep as-is
+            # Domain without subdomain structure - keep as-is
             return host
     
     def _generate_environment_aware_url_string(self, url: str) -> str:
-        """Convert URL strings to environment-aware variables (for headers like Origin/Referer) using DOMAIN_SUFFIX"""
+        """Convert URL strings to environment-aware variables (for headers like Origin/Referer) using CSV domain data"""
         if not url.startswith('https://'):
             return url
             
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
         
-        # Check if this looks like a GuideX domain
-        if ('.' in domain and 
-            (domain.endswith('.guidecx.com') or 
-             domain.endswith('.guidecx.io') or 
-             'guidecx' in domain)):
-            
+        # Only convert domains that contain 'guidecx' - all others are external services
+        is_guidecx_domain = 'guidecx' in domain
+        
+        if not is_guidecx_domain:
+            # External domain (intercom.io, split.io, etc.) - keep as-is
+            return url
+        
+        # This is a GuideX domain, convert it to use api_domain
+        if '.' in domain:
             # Extract and normalize the subdomain (everything before the first dot)
             subdomain = domain.split('.')[0]
             normalized_subdomain = self._normalize_subdomain(subdomain)
-            return f"https://{normalized_subdomain}.{{DOMAIN_SUFFIX}}"
+            return f"https://{normalized_subdomain}.{{self.api_domain}}"
         else:
-            # External domain - keep as-is
+            # Domain without subdomain structure - keep as-is
             return url
     
     def _generate_environment_aware_router_tree(self, router_tree: str) -> str:
@@ -910,28 +1045,21 @@ class HARWorkflowGenerator:
         # and handles other edge cases automatically
         return repr(value)
     
-    def _generate_headers_dict(self, headers: Dict[str, str], method: str) -> Tuple[str, bool, bool]:
-        """Generate Python dict code for headers, return (headers_code, needs_dynamic_action, needs_dynamic_router_state)"""
+    def _generate_headers_dict(self, headers: Dict[str, str], method: str) -> Tuple[str, bool]:
+        """Generate Python dict code for headers, return (headers_code, needs_dynamic_action)"""
         if not headers:
-            return None, False, False
+            return None, False
             
         # Check if this request needs dynamic Next-Action extraction
         has_next_action = any(key.lower() == 'next-action' for key in headers.keys())
-        
-        # Check if this request needs dynamic router state extraction 
-        # Use fresh router state from auth base for all requests with router state
-        has_router_state = any(key.lower() == 'next-router-state-tree' for key in headers.keys())
             
         # Filter out session-specific headers that should be dynamic
         filtered_headers = {}
         for key, value in headers.items():
-            if key.lower() not in ['cookie', 'authorization', 'content-length']:
+            if key.lower() not in ['cookie', 'authorization', 'content-length', 'next-router-state-tree']:
                 # Replace hard-coded Next-Action with dynamic extraction
                 if key.lower() == 'next-action':
                     filtered_headers[key] = "{next_action_id}"  # Template for replacement
-                elif key.lower() == 'next-router-state-tree':
-                    # All requests use dynamic router state from auth base
-                    filtered_headers[key] = "{router_state_tree}"
                 elif key.lower() == 'host':
                     # Make host headers environment-aware
                     filtered_headers[key] = self._generate_environment_aware_host(value)
@@ -949,23 +1077,17 @@ class HARWorkflowGenerator:
         for key, value in filtered_headers.items():
             if key.lower() == 'next-action':
                 items.append(f'                "{key}": next_action_id')
-            elif key.lower() == 'next-router-state-tree':
-                if '{router_state_tree}' in str(value):
-                    items.append(f'                "{key}": router_state_tree')
-                else:
-                    # Static router state with potential f-string formatting
-                    if '{DOMAIN_SUFFIX}' in str(value) or '%7BDOMAIN_SUFFIX%7D' in str(value):
-                        items.append(f'                "{key}": f{self._escape_header_value(value)}')
-                    else:
-                        items.append(f'                "{key}": {self._escape_header_value(value)}')
             elif '{DOMAIN_SUFFIX}' in str(value) or '%7BDOMAIN_SUFFIX%7D' in str(value):
                 # Header with DOMAIN_SUFFIX template (literal or URL-encoded) - needs f-string
+                items.append(f'                "{key}": f{self._escape_header_value(value)}')
+            elif '{self.api_domain}' in str(value) or '%7Bself.api_domain%7D' in str(value):
+                # Header with self.api_domain template (literal or URL-encoded) - needs f-string
                 items.append(f'                "{key}": f{self._escape_header_value(value)}')
             else:
                 items.append(f'                "{key}": {self._escape_header_value(value)}')
             
         headers_code = '{\n' + ',\n'.join(items) + '\n            }'
-        return headers_code, has_next_action, has_router_state
+        return headers_code, has_next_action
     
     def _generate_workflow_class(self) -> str:
         """Generate the complete workflow class using shared authentication"""
@@ -1006,10 +1128,28 @@ class {class_name}(AuthenticatedUser):
     """
     User focused on {workflow_name_lower} activities.
     Standalone version for direct Locust execution.
+    
+    Uses CSV-driven host configuration from base authentication class.
     """
     
     # Relative weight when multiple user classes exist
     weight = 2
+    
+    # Primary subdomain for this workflow (determined from HAR file)
+    primary_subdomain = "{primary_subdomain}"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Extract domain from CSV data (already set by base class)
+        if hasattr(self, 'test_data') and 'domain' in self.test_data:
+            self.api_domain = self.test_data['domain']
+        else:
+            # Fallback to DOMAIN_SUFFIX
+            self.api_domain = DOMAIN_SUFFIX
+            
+        if DEBUG:
+            print(f"{{self.__class__.__name__}} using domain: {{self.api_domain}}")
 
 {task_methods}
 
@@ -1019,10 +1159,10 @@ class {class_name}(AuthenticatedUser):
 
 if __name__ == "__main__":
     print(f"""
-{workflow_name} Workflow
+{{workflow_name}} Workflow
 
 Usage:
-   locust -f {relative_path}
+   locust -f {{relative_path}}
 
 Configuration:
    export TEST_DATA_CSV=config/test_data_staging.csv
@@ -1031,14 +1171,14 @@ Configuration:
 
 Example Commands:
    # Basic test
-   locust -f {relative_path} --headless --users=5 --spawn-rate=1 --run-time=30s
+   locust -f {{relative_path}} --headless --users=5 --spawn-rate=1 --run-time=30s
 
    # With specific CSV data
    export TEST_DATA_CSV=config/test_data_production.csv
-   locust -f {relative_path} --headless --users=3 --spawn-rate=1 --run-time=15s
+   locust -f {{relative_path}} --headless --users=3 --spawn-rate=1 --run-time=15s
 
    # Web UI mode
-   locust -f {relative_path}
+   locust -f {{relative_path}}
     """)
 '''
 
@@ -1075,10 +1215,52 @@ Example Commands:
             workflow_name=self.workflow_name,
             workflow_name_lower=self.workflow_name.lower(),
             class_name=self.class_name,
+            primary_subdomain=self._determine_primary_subdomain(),
             task_methods='\n\n'.join(task_methods),
             relative_path=relative_path,
             input_file=self.input_file_path
         )
+    
+    def _determine_primary_subdomain(self) -> str:
+        """Determine the primary subdomain from the requests in the HAR file"""
+        # Return cached value if already determined
+        if hasattr(self, '_cached_primary_subdomain'):
+            return self._cached_primary_subdomain
+            
+        subdomain_counts = {}
+        
+        for req in self.requests:
+            headers = req.get('headers', {})
+            host_header = headers.get('Host', '')
+            url = req.get('url', '')
+            
+            subdomain = None
+            
+            # Extract subdomain from Host header
+            if host_header and '.' in host_header:
+                subdomain = host_header.split('.')[0].lower()
+            # Or from absolute URL
+            elif url.startswith('https://'):
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                if parsed.netloc and '.' in parsed.netloc:
+                    subdomain = parsed.netloc.split('.')[0].lower()
+            
+            # Count subdomains, but ignore auth-related ones and external services
+            if subdomain and subdomain not in ['arches', 'streaming', 'sdk']:
+                if ('guidecx' in host_header or 'guidecx' in url):  # Only count internal GuideX subdomains
+                    subdomain_counts[subdomain] = subdomain_counts.get(subdomain, 0) + 1
+        
+        # Return the most common subdomain, defaulting to 'app'
+        if subdomain_counts:
+            primary = max(subdomain_counts, key=subdomain_counts.get)
+            print(f"Determined primary subdomain: {primary} (found {subdomain_counts[primary]} requests)")
+            self._cached_primary_subdomain = primary
+            return primary
+        else:
+            print("No clear primary subdomain found, defaulting to 'app'")
+            self._cached_primary_subdomain = 'app'
+            return 'app'
     
     def generate(self) -> str:
         """Main method to generate the workflow class"""
