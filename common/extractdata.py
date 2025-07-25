@@ -592,9 +592,9 @@ def get_fallback_headers(action_type="default"):
             'Next-Action': '0a17c17cfd2792b0b228f1f194c95d78f6cb5330'  # From original HAR analysis
         })
     
-    print(f"🔧 Using verified fallback headers for {action_type}")
+    print(f"Using verified fallback headers for {action_type}")
     if 'Next-Action' in fallback_headers:
-        print(f"🎯 Fallback Next-Action: {fallback_headers['Next-Action'][:8]}...")
+        print(f"Fallback Next-Action: {fallback_headers['Next-Action'][:8]}...")
     return fallback_headers
 
 
@@ -623,9 +623,9 @@ def get_dynamic_headers(client, action_type, project_id=None, phase_id=None):
         'project_delete': '0a17c17cfd2792b0b228f1f194c95d78f6cb5330'
     }
     
-    print(f"🔍 Attempting dynamic header extraction for {action_type}")
+    print(f"Attempting dynamic header extraction for {action_type}")
     expected_hash = verified_hashes.get(action_type, "unknown")
-    print(f"🎯 Expected hash for {action_type}: {expected_hash[:8]}...")
+    print(f"Expected hash for {action_type}: {expected_hash[:8]}...")
     
     try:
         extracted_headers = None
@@ -645,26 +645,26 @@ def get_dynamic_headers(client, action_type, project_id=None, phase_id=None):
             extracted_hash = extracted_headers['Next-Action']
             expected_hash = verified_hashes.get(action_type)
             
-            print(f"🔎 Extracted hash: {extracted_hash[:8]}...")
-            print(f"🎯 Expected hash:  {expected_hash[:8]}...")
+            print(f"Extracted hash: {extracted_hash[:8]}...")
+            print(f"Expected hash:  {expected_hash[:8]}...")
             
             if extracted_hash == expected_hash:
-                print(f"✅ Dynamic extraction successful - hash matches verified!")
+                print(f"Dynamic extraction successful - hash matches verified!")
                 return extracted_headers
             else:
                 print(f"❌ Dynamic extraction found WRONG hash!")
-                print(f"🔄 Using verified fallback headers instead of extracted headers")
+                print(f"Using verified fallback headers instead of extracted headers")
                 return get_fallback_headers(action_type)
         else:
             print(f"⚠️ Dynamic extraction failed - no Next-Action header found in extracted headers")
             if extracted_headers:
-                print(f"📋 Available headers: {list(extracted_headers.keys())}")
-            print(f"🔄 Using verified fallback headers")
+                print(f"Available headers: {list(extracted_headers.keys())}")
+            print(f"Using verified fallback headers")
             return get_fallback_headers(action_type)
         
     except Exception as e:
         print(f"❌ Error in dynamic header extraction for {action_type}: {e}")
-        print(f"🔄 Using fallback headers due to exception")
+        print(f"Using fallback headers due to exception")
         return get_fallback_headers(action_type)
 
 

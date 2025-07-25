@@ -59,11 +59,11 @@ class MessagingLoadTest(AuthenticatedUser):
         with self.client.get(url, catch_response=True, name="view_messaging") as response:
             if response.status_code == 200:
                 response.success()
-                print(f"✅ Successfully loaded messaging page")
+                print(f"Successfully loaded messaging page")
             elif response.status_code == 404:
                 response.failure("Message or channel not found")
                 print(f"❌ Message/channel not found: {url}")
-                print(f"💡 Check your MESSAGE_ID and CHANNEL_ID environment variables")
+                print(f"Check your MESSAGE_ID and CHANNEL_ID environment variables")
             elif response.status_code == 403:
                 response.failure("Access denied to messaging")
                 print(f"❌ Access denied to messaging: {url}")
@@ -105,14 +105,14 @@ class MessagingLoadTest(AuthenticatedUser):
             }
             
             # Use the access token from initial authentication (stored in session_data)
-            print(f"🔍 Using stored session data: {list(self.session_data.keys()) if isinstance(self.session_data, dict) else 'Not a dict'}")
+            print(f"Using stored session data: {list(self.session_data.keys()) if isinstance(self.session_data, dict) else 'Not a dict'}")
             
             if self.session_data and isinstance(self.session_data, dict) and 'accessToken' in self.session_data:
                 headers['Authorization'] = f'Bearer {self.session_data["accessToken"]}'
-                print(f"🔑 Using stored auth token: {self.session_data['accessToken'][:50]}...")
+                print(f"Using stored auth token: {self.session_data['accessToken'][:50]}...")
             else:
                 print(f"❌ No access token available in stored session data!")
-                print(f"🔍 Available data: {self.session_data}")
+                print(f"Available data: {self.session_data}")
                 return
             
             # Make the gRPC-Web request to k2-web subdomain
@@ -136,12 +136,12 @@ class MessagingLoadTest(AuthenticatedUser):
                     
                     if grpc_status == '0':
                         response.success()
-                        print(f"✅ Successfully submitted message: '{dynamic_message}'")
+                        print(f"Successfully submitted message: '{dynamic_message}'")
                         
                         # Debug: Log response details
-                        print(f"🔍 gRPC Response Status: {response.status_code}")
+                        print(f"gRPC Response Status: {response.status_code}")
                         if response.text:
-                            print(f"🔍 gRPC Response Body: {response.text[:200]}...")
+                            print(f"gRPC Response Body: {response.text[:200]}...")
                             # Try to extract message ID from the response for cleanup
                             self._extract_message_id_from_response(response.text)
                         
@@ -152,7 +152,7 @@ class MessagingLoadTest(AuthenticatedUser):
                     else:
                         response.failure(f"gRPC error: {grpc_message} (status: {grpc_status})")
                         print(f"❌ gRPC-level error: {grpc_message} (status: {grpc_status})")
-                        print(f"🔍 Full headers: {dict(response.headers)}")
+                        print(f"Full headers: {dict(response.headers)}")
                         
                 elif response.status_code == 401:
                     response.failure("Authentication failed for gRPC")
@@ -173,7 +173,7 @@ class MessagingLoadTest(AuthenticatedUser):
         This mimics what the browser does in the HAR file after successful message submission.
         """
         try:
-            print(f"🔄 Refreshing message list after submission...")
+            print(f"Refreshing message list after submission...")
             
             # Use the same payload as in the HAR file for LoadRecentActivity
             grpc_payload = "AAAAAAIYHg=="  # From HAR analysis
@@ -202,7 +202,7 @@ class MessagingLoadTest(AuthenticatedUser):
             )
             
             if response.status_code == 200:
-                print(f"✅ Message list refreshed successfully")
+                print(f"Message list refreshed successfully")
             else:
                 print(f"❌ Failed to refresh message list. Status: {response.status_code}")
                 
@@ -240,7 +240,7 @@ class MessagingLoadTest(AuthenticatedUser):
             )
             
             if response.status_code == 200:
-                print(f"✅ Successfully loaded recent activity")
+                print(f"Successfully loaded recent activity")
             else:
                 print(f"❌ Failed to load recent activity. Status: {response.status_code}")
                 
@@ -278,7 +278,7 @@ class MessagingLoadTest(AuthenticatedUser):
             )
             
             if response.status_code == 200:
-                print(f"✅ Successfully loaded mentions")
+                print(f"Successfully loaded mentions")
             else:
                 print(f"❌ Failed to load mentions. Status: {response.status_code}")
                 
@@ -293,7 +293,7 @@ class MessagingLoadTest(AuthenticatedUser):
         This approach ensures wire format compatibility while allowing dynamic content.
         """
         try:
-            print(f"🔧 Creating payload for channel: {channel_id}, message: '{message_text}'")
+            print(f"Creating payload for channel: {channel_id}, message: '{message_text}'")
             
             # Use the exact working HAR payload as template and modify it
             # Original HAR payload (base64): AAAAAJoSJgokZGQ2ZGRkN2UtOGMyNS00YjVjLWE1OWItYzgzODkzMDcyNTJhGg88cD5sb2FkdGVzdDwvcD4iXXsidHlwZSI6ImRvYyIsImNvbnRlbnQiOlt7InR5cGUiOiJwYXJhZ3JhcGgiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJsb2FkdGVzdCJ9XX1dfTAA
@@ -362,13 +362,13 @@ class MessagingLoadTest(AuthenticatedUser):
             # Encode as base64
             encoded_payload = base64.b64encode(final_payload).decode('ascii')
             
-            print(f"🔧 Generated HAR-compatible payload: {encoded_payload[:100]}...")
+            print(f"Generated HAR-compatible payload: {encoded_payload[:100]}...")
             return encoded_payload
             
         except Exception as e:
             print(f"❌ Error creating HAR-compatible payload: {e}")
             # If our smart approach fails, fall back to original hardcoded payload
-            print(f"🔄 Falling back to original HAR payload")
+            print(f"Falling back to original HAR payload")
             return "AAAAAJoSJgokZGQ2ZGRkN2UtOGMyNS00YjVjLWE1OWItYzgzODkzMDcyNTJhGg88cD5sb2FkdGVzdDwvcD4iXXsidHlwZSI6ImRvYyIsImNvbnRlbnQiOlt7InR5cGUiOiJwYXJhZ3JhcGgiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJsb2FkdGVzdCJ9XX1dfTAA"
     
     def _extract_message_id_from_response(self, response_text):
@@ -431,7 +431,7 @@ class MessagingLoadTest(AuthenticatedUser):
             # Encode as base64 for gRPC-Web-text
             encoded_payload = base64.b64encode(payload).decode('ascii')
             
-            print(f"🔧 Created delete payload for {message_id}: {encoded_payload}")
+            print(f"Created delete payload for {message_id}: {encoded_payload}")
             return encoded_payload
             
         except Exception as e:
@@ -462,7 +462,7 @@ class MessagingLoadTest(AuthenticatedUser):
         Based on HAR file analysis: /manager.message.messages.MessageService/DeleteMessage
         """
         try:
-            print(f"🗑️ Attempting to delete message: {message_id}")
+            print(f"Attempting to delete message: {message_id}")
             
             # Create delete payload
             delete_payload = self._create_delete_message_payload(message_id)
@@ -499,7 +499,7 @@ class MessagingLoadTest(AuthenticatedUser):
                 # Check for gRPC-level errors
                 grpc_status = response.headers.get('grpc-status', '0')
                 if grpc_status == '0':
-                    print(f"✅ Successfully deleted message: {message_id}")
+                    print(f"Successfully deleted message: {message_id}")
                     return True
                 else:
                     grpc_message = response.headers.get('grpc-message', 'Unknown error')
@@ -543,21 +543,21 @@ class MessagingLoadTest(AuthenticatedUser):
         env_message = os.getenv('MESSAGE_ID')
         env_text = os.getenv('TEST_MESSAGE_TEXT')
         if env_channel:
-            print(f"📋 Using CHANNEL_ID from environment: {env_channel}")
+            print(f"Using CHANNEL_ID from environment: {env_channel}")
         else:
-            print(f"📋 Using default CHANNEL_ID from HAR analysis")
+            print(f"Using default CHANNEL_ID from HAR analysis")
         if env_message:
-            print(f"📋 Using MESSAGE_ID from environment: {env_message}")
+            print(f"Using MESSAGE_ID from environment: {env_message}")
         else:
-            print(f"📋 Using default MESSAGE_ID from HAR analysis")
+            print(f"Using default MESSAGE_ID from HAR analysis")
         if env_text:
-            print(f"📋 Using TEST_MESSAGE_TEXT from environment: {env_text}")
+            print(f"Using TEST_MESSAGE_TEXT from environment: {env_text}")
         else:
-            print(f"📋 Using default TEST_MESSAGE_TEXT: loadtest")
+            print(f"Using default TEST_MESSAGE_TEXT: loadtest")
     
     def on_stop(self):
         """Called when user stops"""
-        print(f"🛑 Messaging load test completed for user: {self.login_email}")
+        print(f"Messaging load test completed for user: {self.login_email}")
         # Clean up created messages to avoid filling up the messaging system
         self.cleanup_created_messages()
 
@@ -612,7 +612,7 @@ class MessageStressTest(AuthenticatedUser):
             )
             
             if response.status_code == 200:
-                print(f"✅ Stress test message sent: {test_message}")
+                print(f"Stress test message sent: {test_message}")
                 # Try to extract message ID from response for cleanup
                 if response.text:
                     self._extract_message_id_from_response(response.text)
@@ -628,7 +628,7 @@ class MessageStressTest(AuthenticatedUser):
         Uses the same approach as the main test to ensure wire format compatibility.
         """
         try:
-            print(f"🔧 Creating stress test payload for channel: {channel_id}, message: '{message_text}'")
+            print(f"Creating stress test payload for channel: {channel_id}, message: '{message_text}'")
             
             # Use the same HAR-compatible approach as the main test
             # Create new content with same structure but different values
@@ -739,7 +739,7 @@ class MessageStressTest(AuthenticatedUser):
             # Encode as base64 for gRPC-Web-text
             encoded_payload = base64.b64encode(payload).decode('ascii')
             
-            print(f"🔧 Created stress test delete payload for {message_id}: {encoded_payload}")
+            print(f"Created stress test delete payload for {message_id}: {encoded_payload}")
             return encoded_payload
             
         except Exception as e:
@@ -752,7 +752,7 @@ class MessageStressTest(AuthenticatedUser):
         Based on HAR file analysis: /manager.message.messages.MessageService/DeleteMessage
         """
         try:
-            print(f"🗑️ Attempting to delete stress test message: {message_id}")
+            print(f"Attempting to delete stress test message: {message_id}")
             
             # Create delete payload
             delete_payload = self._create_delete_message_payload(message_id)
@@ -789,7 +789,7 @@ class MessageStressTest(AuthenticatedUser):
                 # Check for gRPC-level errors
                 grpc_status = response.headers.get('grpc-status', '0')
                 if grpc_status == '0':
-                    print(f"✅ Successfully deleted stress test message: {message_id}")
+                    print(f"Successfully deleted stress test message: {message_id}")
                     return True
                 else:
                     grpc_message = response.headers.get('grpc-message', 'Unknown error')
@@ -822,7 +822,7 @@ class MessageStressTest(AuthenticatedUser):
     
     def on_stop(self):
         """Called when stress test user stops"""
-        print(f"🛑 Stress test completed for user: {self.login_email}")
+        print(f"Stress test completed for user: {self.login_email}")
         # Clean up created messages to avoid filling up the messaging system
         self.cleanup_created_messages()
 
@@ -842,20 +842,20 @@ if __name__ == "__main__":
         user = MessagingLoadTest(env)
         
         if user.is_authenticated:
-            print("🎉 Authentication successful - ready for messaging tests")
+            print("Authentication successful - ready for messaging tests")
             
             # Test the main messaging page
             try:
                 user.view_messaging_page()
-                print("🎉 Messaging page test: PASSED")
+                print("Messaging page test: PASSED")
             except Exception as e:
                 print(f"❌ Messaging page test: {e}")
                 
             # Test gRPC message submission with dynamic content
             try:
                 user.submit_message_grpc()
-                print("🎉 gRPC message submission test: PASSED")
-                print("🔍 Check your messaging app - you should see a new message!")
+                print("gRPC message submission test: PASSED")
+                print("Check your messaging app - you should see a new message!")
             except Exception as e:
                 print(f"❌ gRPC message submission test: {e}")
         else:

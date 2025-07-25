@@ -367,7 +367,7 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
                     # Try to extract milestone ID from response
                     milestone_id = extract_milestone_id_from_response(response.text)
                     if milestone_id:
-                        print(f"✅ Created milestone: '{milestone_name}' with ID: {milestone_id}")
+                        print(f"Created milestone: '{milestone_name}' with ID: {milestone_id}")
                         return {
                             'id': milestone_id,
                             'name': milestone_name,
