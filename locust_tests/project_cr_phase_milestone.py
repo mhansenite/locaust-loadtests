@@ -14,6 +14,7 @@ import json
 import time
 import uuid
 import re
+import random
 from locust import task, between
 
 # Add parent directory to path to import from common
@@ -319,7 +320,69 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             
         return None
 
-    @task(3)  # Primary task - weight 3
+    def _create_single_task(self, milestone_id, milestone_name, task_suffix=""):
+        """Helper method to create a single task under a milestone"""
+        import json
+        import re
+        
+        # Create a unique task name
+        timestamp = int(time.time())
+        unique_id = uuid.uuid4().hex[:8]
+        task_name = f"{self.TEST_TASK_NAME}-{timestamp}-{unique_id}{task_suffix}"
+        
+        # Based on createingatask.har analysis
+        task_url = f"/project/{self.test_project_id}/plan"
+        params = {
+            'phase': self.test_phase_id,
+            'view': 'board'
+        }
+        
+        task_payload = json.dumps([{
+            "name": task_name,
+            "parentId": {"uuid": milestone_id}
+        }])
+        
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
+        
+        with self.client.post(
+            task_url,
+            params=params,
+            data=task_payload,
+            headers=headers,
+            catch_response=True,
+            name="create_task_batch"
+        ) as response:
+            if response.status_code == 200:
+                response.success()
+                
+                try:
+                    if 'task' in response.text and 'response' in response.text:
+                        json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
+                        if json_match:
+                            task_id = json_match.group(1)
+                            
+                            # Store the created task for tracking
+                            self.created_tasks.append({
+                                'id': task_id,
+                                'name': task_name,
+                                'milestone_id': milestone_id,
+                                'milestone_name': milestone_name
+                            })
+                            return task_id, task_name
+                            
+                except Exception as e:
+                    print(f"⚠️ Error parsing task creation response: {e}")
+            else:
+                response.failure(f"Failed to create task: {response.status_code}")
+                
+        return None, None
+
+    @task(6)  # Primary task - increased weight for more viewing activity
     def view_project_plan(self):
         """Test viewing the project plan page"""
         # Ensure we have a project to work with
@@ -362,7 +425,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 response.failure(f"Unexpected status code: {response.status_code}")
                 print(f"⚠️ Unexpected response: {response.status_code} for {url}")
     
-    @task(5)  # Higher frequency for milestone creation - weight 5
+    @task(4)  # Adjusted weight for milestone creation (creates 1-10 tasks each)
     def create_milestone(self):
         """Test creating a milestone in the current phase"""
         # Import required modules at the start
@@ -381,17 +444,43 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 print(f"⚠️ No project ID available and CREATE_NEW_PROJECT=false")
                 return
         
-        if not self.test_phase_id:
+        # Ensure we have at least one phase available
+        if not self.test_phase_id and not self.created_phases:
             # If no phase ID, create one first
             print(f"🔗 No phase ID available, creating phase first...")
             self.create_test_phase()
             
             # Check if phase creation succeeded
-            if not self.test_phase_id:
+            if not self.test_phase_id and not self.created_phases:
                 print(f"⚠️ Phase creation failed, cannot create milestone")
                 return
             else:
-                print(f"✅ Phase created successfully, continuing with milestone creation in phase: {self.test_phase_id}")
+                print(f"✅ Phase created successfully, continuing with milestone creation")
+        
+        # 🎯 Smart phase creation: Create more phases if we have too many milestones per phase
+        phase_count = len(self.created_phases) + (1 if self.test_phase_id else 0)
+        milestone_count = len(self.created_milestones)
+        
+        # Target: roughly 2-3 milestones per phase for good distribution
+        if phase_count > 0 and milestone_count > 0:
+            milestones_per_phase = milestone_count / phase_count
+            if milestones_per_phase > 2.5:  # If more than 2.5 milestones per phase on average
+                print(f"📊 Current ratio: {milestones_per_phase:.1f} milestones per phase ({milestone_count}/{phase_count})")
+                print(f"🎯 Creating additional phase for better distribution...")
+                self.create_test_phase()  # Create another phase proactively
+        
+        # Select a random phase from available phases for realistic distribution
+        if self.created_phases:
+            selected_phase = random.choice(self.created_phases)
+            selected_phase_id = selected_phase['id']
+            selected_phase_name = selected_phase['name']
+            print(f"🎲 Randomly selected phase: '{selected_phase_name}' ({selected_phase_id})")
+        elif self.test_phase_id:
+            selected_phase_id = self.test_phase_id
+            print(f"🔗 Using primary phase: {selected_phase_id}")
+        else:
+            print(f"⚠️ No phases available for milestone creation")
+            return
         
         # Create a unique milestone name
         timestamp = int(time.time())
@@ -404,14 +493,14 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         milestone_url = f"/project/{self.test_project_id}/plan"
         params = {
-            'phase': self.test_phase_id,
+            'phase': selected_phase_id,
             'view': 'board'
         }
         
         # Create the milestone payload - exact format from CreateMilestone.har
         milestone_payload = json.dumps([{
             "name": milestone_name,
-            "phaseId": {"uuid": self.test_phase_id}
+            "phaseId": {"uuid": selected_phase_id}
         }])
         
         # Set up headers based on CreateMilestone.har analysis
@@ -422,7 +511,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
         }
         
-        print(f"🎯 Creating milestone '{milestone_name}' in phase {self.test_phase_id}")
+        print(f"🎯 Creating milestone '{milestone_name}' in selected phase {selected_phase_id}")
         
         with self.client.post(
             milestone_url,
@@ -451,7 +540,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                             self.created_milestones.append({
                                 'id': milestone_id,
                                 'name': milestone_name,
-                                'phase_id': self.test_phase_id
+                                'phase_id': selected_phase_id
                             })
                             
                         else:
@@ -466,9 +555,9 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 response.failure(f"Failed to create milestone: {response.status_code} - {response.text[:200]}")
                 print(f"❌ Failed to create milestone: {response.status_code} - {response.text[:200]}")
     
-    @task(7)  # Higher frequency for task creation - weight 7 
+    @task(5)  # Balanced weight for task creation (each call creates 1-10 tasks)
     def create_task(self):
-        """Test creating a task under a milestone"""
+        """Test creating 1-10 random tasks under a milestone"""
         # Import required modules at the start
         import json
         import re
@@ -507,85 +596,200 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 print(f"⚠️ Milestone creation failed, cannot create task")
                 return
         
-        # Use the most recent milestone as the parent
-        milestone_id = self.created_milestones[-1]['id']
-        milestone_name = self.created_milestones[-1]['name']
+        # Randomly select a milestone for realistic distribution across phases
+        selected_milestone = random.choice(self.created_milestones)
+        milestone_id = selected_milestone['id']
+        milestone_name = selected_milestone['name']
+        milestone_phase_id = selected_milestone['phase_id']
         
-        # Create a unique task name
-        timestamp = int(time.time())
-        unique_id = uuid.uuid4().hex[:8]
-        task_name = f"{self.TEST_TASK_NAME}-{timestamp}-{unique_id}"
+        print(f"🎲 Randomly selected milestone: '{milestone_name}' in phase {milestone_phase_id}")
         
-        # Based on createingatask.har analysis, the correct task creation API is:
-        # POST /project/{projectId}/plan?phase={phaseId}&view=board
-        # with payload: [{"name":"task_name","parentId":{"uuid":"milestone_id"}}]
+        # 🎯 Create random number of tasks (1-10) for this milestone
+        num_tasks = random.randint(1, 10)
+        print(f"📋 Creating {num_tasks} tasks for milestone '{milestone_name}'")
         
-        task_url = f"/project/{self.test_project_id}/plan"
-        params = {
-            'phase': self.test_phase_id,
-            'view': 'board'
-        }
-        
-        # Create the task payload - exact format from createingatask.har
-        task_payload = json.dumps([{
-            "name": task_name,
-            "parentId": {"uuid": milestone_id}
-        }])
-        
-        # Set up headers based on createingatask.har analysis
-        headers = {
-            'Content-Type': 'text/plain;charset=UTF-8',
-            'Accept': 'text/x-component',
-            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
-            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
-        }
-        
-        print(f"📝 Creating task '{task_name}' under milestone '{milestone_name}' ({milestone_id})")
-        
-        with self.client.post(
-            task_url,
-            params=params,
-            data=task_payload,
-            headers=headers,
-            catch_response=True,
-            name="create_task"
-        ) as response:
-            if response.status_code == 200:
-                response.success()
-                
-                # Parse the response to get the task ID
-                try:
-                    # Look for task creation confirmation in response
-                    if 'task' in response.text and 'response' in response.text:
-                        print(f"✅ Task creation response received")
-                        
-                        # Extract task ID from response
-                        json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
-                        if json_match:
-                            task_id = json_match.group(1)
-                            print(f"✅ Successfully created task '{task_name}' with ID: {task_id}")
-                            
-                            # Store the created task for tracking
-                            self.created_tasks.append({
-                                'id': task_id,
-                                'name': task_name,
-                                'milestone_id': milestone_id,
-                                'milestone_name': milestone_name
-                            })
-                            
-                        else:
-                            print(f"⚠️ Task created but couldn't extract ID from response")
-                    else:
-                        print(f"⚠️ Unexpected task creation response: {response.text[:200]}")
-                        
-                except Exception as e:
-                    print(f"⚠️ Error parsing task creation response: {e}")
+        tasks_created = 0
+        for i in range(num_tasks):
+            # Create a unique task name for each task
+            timestamp = int(time.time())
+            unique_id = uuid.uuid4().hex[:8]
+            task_suffix = f"-{i+1}" if num_tasks > 1 else ""
+            task_name = f"{self.TEST_TASK_NAME}-{timestamp}-{unique_id}{task_suffix}"
+            
+            # Based on createingatask.har analysis, the correct task creation API is:
+            # POST /project/{projectId}/plan?phase={phaseId}&view=board
+            # with payload: [{"name":"task_name","parentId":{"uuid":"milestone_id"}}]
+            
+            task_url = f"/project/{self.test_project_id}/plan"
+            params = {
+                'phase': milestone_phase_id,
+                'view': 'board'
+            }
+            
+            # Create the task payload - exact format from createingatask.har
+            task_payload = json.dumps([{
+                "name": task_name,
+                "parentId": {"uuid": milestone_id}
+            }])
+            
+            # Set up headers based on createingatask.har analysis
+            headers = {
+                'Content-Type': 'text/plain;charset=UTF-8',
+                'Accept': 'text/x-component',
+                'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
+                'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+            }
+            
+            print(f"📝 Creating task {i+1}/{num_tasks}: '{task_name}' under milestone '{milestone_name}' ({milestone_id})")
+            
+            with self.client.post(
+                task_url,
+                params=params,
+                data=task_payload,
+                headers=headers,
+                catch_response=True,
+                name="create_task_batch"
+            ) as response:
+                if response.status_code == 200:
+                    response.success()
                     
-            else:
-                response.failure(f"Failed to create task: {response.status_code} - {response.text[:200]}")
-                print(f"❌ Failed to create task: {response.status_code} - {response.text[:200]}")
+                    # Parse the response to get the task ID
+                    try:
+                        # Look for task creation confirmation in response
+                        if 'task' in response.text and 'response' in response.text:
+                            
+                            # Extract task ID from response
+                            json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
+                            if json_match:
+                                task_id = json_match.group(1)
+                                print(f"  ✅ Successfully created task {i+1}/{num_tasks}: '{task_name}' with ID: {task_id}")
+                                
+                                # Store the created task for tracking
+                                self.created_tasks.append({
+                                    'id': task_id,
+                                    'name': task_name,
+                                    'milestone_id': milestone_id,
+                                    'milestone_name': milestone_name
+                                })
+                                
+                                tasks_created += 1
+                                
+                            else:
+                                print(f"  ⚠️ Task {i+1}/{num_tasks} created but couldn't extract ID from response")
+                        else:
+                            print(f"  ⚠️ Unexpected task creation response for task {i+1}/{num_tasks}: {response.text[:100]}")
+                            
+                    except Exception as e:
+                        print(f"  ⚠️ Error parsing task creation response for task {i+1}/{num_tasks}: {e}")
+                        
+                else:
+                    response.failure(f"Failed to create task {i+1}/{num_tasks}: {response.status_code} - {response.text[:200]}")
+                    print(f"  ❌ Failed to create task {i+1}/{num_tasks}: {response.status_code} - {response.text[:100]}")
+                    
+                # Small delay between tasks to avoid overwhelming the server
+                time.sleep(0.1)
+        
+        print(f"🎉 Task batch complete: Created {tasks_created}/{num_tasks} tasks for milestone '{milestone_name}'")
+    
+    @task(3)  # Moderate frequency for realistic task management
+    def update_existing_tasks(self):
+        """Test updating existing tasks with assignments, dates, status, etc."""
+        import json
+        import random
+        from datetime import datetime, timedelta
+        
+        # Skip if no tasks exist yet
+        if not self.created_tasks:
+            return
+        
+        # Randomly select 1-3 tasks to update (or all if fewer)
+        num_updates = min(random.randint(1, 3), len(self.created_tasks))
+        tasks_to_update = random.sample(self.created_tasks, num_updates)
+        
+        # Sample assignees (you can customize these)
+        assignees = [
+            "John Smith", "Sarah Johnson", "Mike Chen", "Lisa Rodriguez", 
+            "David Kim", "Emily Brown", "Alex Taylor", "Jennifer Wilson"
+        ]
+        
+        # Sample statuses
+        statuses = ["To Do", "In Progress", "Review", "Done", "Blocked"]
+        
+        print(f"🔄 Updating {num_updates} existing tasks...")
+        
+        for task_info in tasks_to_update:
+            task_id = task_info['id']
+            task_name = task_info['name']
+            milestone_id = task_info['milestone_id']
+            
+            # Generate random updates
+            updates = {
+                "assignee": random.choice(assignees),
+                "status": random.choice(statuses),
+                "estimated_hours": random.randint(1, 40),  # 1-40 hours
+                "start_date": (datetime.now() + timedelta(days=random.randint(0, 14))).strftime("%Y-%m-%d"),
+                "due_date": (datetime.now() + timedelta(days=random.randint(15, 45))).strftime("%Y-%m-%d"),
+                "progress": random.randint(0, 100),  # 0-100% complete
+                "priority": random.choice(["Low", "Medium", "High", "Critical"])
+            }
+            
+            # Call task update API (you'll need to provide the correct HAR for this)
+            self._update_single_task(task_id, task_name, milestone_id, updates)
+    
+    def _update_single_task(self, task_id, task_name, milestone_id, updates):
+        """Helper method to update a single task with new properties"""
+        # TODO: You'll need to provide a HAR file for task updates to get the correct API
+        # For now, this is a placeholder showing the structure
+        
+        # Based on typical task update patterns, this would likely be:
+        # PUT/PATCH /project/{projectId}/plan/task/{taskId} 
+        # or POST /project/{projectId}/plan with task update payload
+        
+        print(f"  📝 Updating task '{task_name}' (ID: {task_id[:8]})...")
+        print(f"     • Assignee: {updates['assignee']}")
+        print(f"     • Status: {updates['status']} ({updates['progress']}%)")
+        print(f"     • Estimated: {updates['estimated_hours']}h")
+        print(f"     • Due: {updates['due_date']}")
+        print(f"     • Priority: {updates['priority']}")
+        
+        # Placeholder for actual API call - you'll need to analyze a task update HAR file
+        # task_update_url = f"/project/{self.test_project_id}/plan/task/{task_id}"
+        # 
+        # task_update_payload = json.dumps({
+        #     "id": {"uuid": task_id},
+        #     "milestoneId": {"uuid": milestone_id},
+        #     "assignee": updates['assignee'],
+        #     "status": updates['status'],
+        #     "estimatedHours": updates['estimated_hours'],
+        #     "startDate": updates['start_date'],
+        #     "dueDate": updates['due_date'],
+        #     "progress": updates['progress'],
+        #     "priority": updates['priority']
+        # })
+        # 
+        # headers = {
+        #     'Content-Type': 'text/plain;charset=UTF-8',
+        #     'Accept': 'text/x-component',
+        #     'Next-Action': 'TASK_UPDATE_ACTION_ID_FROM_HAR'  # Need from HAR
+        # }
+        # 
+        # with self.client.put(
+        #     task_update_url,
+        #     data=task_update_payload,
+        #     headers=headers,
+        #     catch_response=True,
+        #     name="update_task"
+        # ) as response:
+        #     if response.status_code == 200:
+        #         response.success()
+        #         print(f"     ✅ Successfully updated task")
+        #     else:
+        #         response.failure(f"Failed to update task: {response.status_code}")
+        
+        # For now, just simulate the update
+        print(f"     ✅ Task update simulated (need HAR file for real API)")
       
-    @task(1)  # Lower frequency - weight 1 (reduced from 4)
+    @task(6)  # Higher frequency to create more phases for distribution
     def create_test_phase(self):
         """Test creating a new phase in the project using the correct direct API"""
         # Ensure we have a project to work with
@@ -848,496 +1052,432 @@ class ProjectStressTest(AuthenticatedUser):
         self.created_tasks = []
         self.created_items = []  # For general tracking
         
-        print(f"🚀 Starting stress test")
-        print(f"🔗 Project ID: Will create NEW project (CREATE_NEW_PROJECT=true)") if self.CREATE_NEW_PROJECT else print(f"🔗 Project ID: Using existing {self.PROJECT_ID}")
-    
-    @task(8)  # Highest frequency for stress task creation
-    def create_stress_task(self):
-        """Stress test creating tasks under milestones"""
-        # Import required modules at the start
-        import json
-        import re
-        
-        # Ensure we have a project to work with
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                print(f"🔗 Stress: No project ID available, creating project first...")
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    print(f"⚠️ Stress: Project creation failed, cannot create task")
-                    return
-            else:
-                print(f"⚠️ Stress: No project ID available and CREATE_NEW_PROJECT=false")
-                return
-        
-        if not self.test_phase_id:
-            print(f"🔗 Stress: No phase ID available, creating phase first...")
-            self.create_stress_test_phase()
-            if not self.test_phase_id:
-                print(f"⚠️ Stress: Phase creation failed, cannot create task")
-                return
-        
-        # Ensure we have a milestone to attach the task to
-        if not self.created_milestones:
-            print(f"🔗 Stress: No milestones available, creating milestone first...")
-            self.create_stress_milestone()
-            if not self.created_milestones:
-                print(f"⚠️ Stress: Milestone creation failed, cannot create task")
-                return
-        
-        # Use the most recent milestone as the parent
-        milestone_id = self.created_milestones[-1]['id']
-        milestone_name = self.created_milestones[-1]['name']
-        
-        # Create a unique task name for stress testing
-        timestamp = int(time.time() * 1000)  # More granular timestamp for stress testing
-        random_id = uuid.uuid4().hex[:6]
-        task_name = f"stress-{self.TEST_TASK_NAME}-{timestamp}-{random_id}"
-        
-        # Use the same API as the main test
-        task_url = f"/project/{self.test_project_id}/plan"
-        params = {
-            'phase': self.test_phase_id,
-            'view': 'board'
-        }
-        
-        task_payload = json.dumps([{
-            "name": task_name,
-            "parentId": {"uuid": milestone_id}
-        }])
-        
-        headers = {
-            'Content-Type': 'text/plain;charset=UTF-8',
-            'Accept': 'text/x-component',
-            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
-            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
-        }
-        
-        print(f"📝 Stress: Creating task '{task_name}' under milestone '{milestone_name}' ({milestone_id})")
-        
-        with self.client.post(
-            task_url,
-            params=params,
-            data=task_payload,
-            headers=headers,
-            catch_response=True,
-            name="create_stress_task"
-        ) as response:
-            if response.status_code == 200:
-                response.success()
-                
-                try:
-                    if 'task' in response.text and 'response' in response.text:
-                        json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
-                        if json_match:
-                            task_id = json_match.group(1)
-                            print(f"✅ Stress: Successfully created task '{task_name}' with ID: {task_id}")
-                            
-                            self.created_tasks.append({
-                                'id': task_id,
-                                'name': task_name,
-                                'milestone_id': milestone_id,
-                                'milestone_name': milestone_name
-                            })
-                            self.created_items.append(f"task:{task_id}")
-                            
-                        else:
-                            print(f"⚠️ Stress: Task created but couldn't extract ID from response")
-                    else:
-                        print(f"⚠️ Stress: Unexpected task creation response: {response.text[:200]}")
-                        
-                except Exception as e:
-                    print(f"⚠️ Stress: Error parsing task creation response: {e}")
-                    
-            else:
-                response.failure(f"Stress task creation failed: {response.status_code} - {response.text[:200]}")
-                print(f"❌ Stress: Failed to create task: {response.status_code} - {response.text[:200]}")
-
-    @task(5)  # Stress milestone creation
-    def create_stress_milestone(self):
-        """Create milestones rapidly for stress testing"""
-        # Ensure we have a project
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    return
-            else:
-                return
-        
-        if not self.test_phase_id:
-            self.rapid_phase_creation()
-            return
-            
-        try:
-            # Generate unique test milestone
-            timestamp = int(time.time() * 1000)  # More granular timestamp
-            random_id = uuid.uuid4().hex[:6]
-            milestone_name = f"stress-{self.TEST_MILESTONE_NAME}-{timestamp}-{random_id}"
-            
-            # Create milestone payload
-            milestone_payload = json.dumps([{
-                "name": milestone_name,
-                "phaseId": {"uuid": self.test_phase_id}
-            }])
-            
-            headers = {
-                'Accept': 'text/x-component',
-                'Content-Type': 'text/plain;charset=UTF-8',
-                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
-            }
-            
-            create_url = f"/project/{self.test_project_id}/plan?phase={self.test_phase_id}&view=list"
-            
-            response = self.client.post(
-                create_url,
-                data=milestone_payload,
-                headers=headers,
-                name="stress_milestone_create"
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Stress test milestone created: {milestone_name}")
-                self.created_items.append(f"milestone:{milestone_name}")
-            else:
-                print(f"⚠️ Stress test milestone failed: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Stress test milestone error: {e}")
-    
-    @task(1)
-    def rapid_phase_creation(self):
-        """Create phases rapidly for stress testing"""
-        # Ensure we have a project
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    return
-            else:
-                return
-        
-        try:
-            # Generate unique test phase
-            timestamp = int(time.time() * 1000)
-            random_id = uuid.uuid4().hex[:6]
-            phase_name = f"stress-{self.TEST_PHASE_NAME}-{timestamp}-{random_id}"
-            
-            # Create phase payload
-            phase_payload = json.dumps([{
-                "name": phase_name,
-                "projectId": {"uuid": self.test_project_id}
-            }])
-            
-            headers = {
-                'Accept': 'text/x-component',
-                'Content-Type': 'text/plain;charset=UTF-8',
-                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
-            }
-            
-            create_url = f"/project/{self.test_project_id}/plan"
-            
-            response = self.client.post(
-                create_url,
-                data=phase_payload,
-                headers=headers,
-                name="stress_phase_create"
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Stress test phase created: {phase_name}")
-                self.created_items.append(f"phase:{phase_name}")
-                
-                # Try to extract phase ID for milestone creation
-                if not self.test_phase_id:
-                    phase_id = self._extract_phase_id_from_response(response.text)
-                    if phase_id:
-                        self.test_phase_id = phase_id
-                        print(f"🔗 Set stress test phase ID: {phase_id}")
-            else:
-                print(f"⚠️ Stress test phase failed: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Stress test phase error: {e}")
-    
-    def _extract_phase_id_from_response(self, response_text):
-        """Extract phase ID from response"""
-        try:
-            uuid_pattern = r'"uuid":"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"'
-            matches = re.findall(uuid_pattern, response_text)
-            
-            if matches:
-                for uuid_match in matches:
-                    if uuid_match != self.test_project_id:
-                        return uuid_match
-        except Exception as e:
-            print(f"⚠️ Could not extract phase ID: {e}")
-        return None
-    
-    def on_start(self):
-        """Called when stress test user starts - authentication happens automatically"""
-        super().on_start()  # This calls authenticate()
-        self.created_projects = []
-        self.created_phases = []
-        self.created_milestones = []  
-        self.created_tasks = []
-        self.created_items = []  # For general tracking
-        
-        print(f"🚀 Starting stress test")
-        print(f"🔗 Project ID: Will create NEW project (CREATE_NEW_PROJECT=true)") if self.CREATE_NEW_PROJECT else print(f"🔗 Project ID: Using existing {self.PROJECT_ID}")
-    
-    @task(8)  # Highest frequency for stress task creation
-    def create_stress_task(self):
-        """Stress test creating tasks under milestones"""
-        # Import required modules at the start
-        import json
-        import re
-        
-        # Ensure we have a project to work with
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                print(f"🔗 Stress: No project ID available, creating project first...")
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    print(f"⚠️ Stress: Project creation failed, cannot create task")
-                    return
-            else:
-                print(f"⚠️ Stress: No project ID available and CREATE_NEW_PROJECT=false")
-                return
-        
-        if not self.test_phase_id:
-            print(f"🔗 Stress: No phase ID available, creating phase first...")
-            self.create_stress_test_phase()
-            if not self.test_phase_id:
-                print(f"⚠️ Stress: Phase creation failed, cannot create task")
-                return
-        
-        # Ensure we have a milestone to attach the task to
-        if not self.created_milestones:
-            print(f"🔗 Stress: No milestones available, creating milestone first...")
-            self.create_stress_milestone()
-            if not self.created_milestones:
-                print(f"⚠️ Stress: Milestone creation failed, cannot create task")
-                return
-        
-        # Use the most recent milestone as the parent
-        milestone_id = self.created_milestones[-1]['id']
-        milestone_name = self.created_milestones[-1]['name']
-        
-        # Create a unique task name for stress testing
-        timestamp = int(time.time() * 1000)  # More granular timestamp for stress testing
-        random_id = uuid.uuid4().hex[:6]
-        task_name = f"stress-{self.TEST_TASK_NAME}-{timestamp}-{random_id}"
-        
-        # Use the same API as the main test
-        task_url = f"/project/{self.test_project_id}/plan"
-        params = {
-            'phase': self.test_phase_id,
-            'view': 'board'
-        }
-        
-        task_payload = json.dumps([{
-            "name": task_name,
-            "parentId": {"uuid": milestone_id}
-        }])
-        
-        headers = {
-            'Content-Type': 'text/plain;charset=UTF-8',
-            'Accept': 'text/x-component',
-            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
-            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
-        }
-        
-        print(f"📝 Stress: Creating task '{task_name}' under milestone '{milestone_name}' ({milestone_id})")
-        
-        with self.client.post(
-            task_url,
-            params=params,
-            data=task_payload,
-            headers=headers,
-            catch_response=True,
-            name="create_stress_task"
-        ) as response:
-            if response.status_code == 200:
-                response.success()
-                
-                try:
-                    if 'task' in response.text and 'response' in response.text:
-                        json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
-                        if json_match:
-                            task_id = json_match.group(1)
-                            print(f"✅ Stress: Successfully created task '{task_name}' with ID: {task_id}")
-                            
-                            self.created_tasks.append({
-                                'id': task_id,
-                                'name': task_name,
-                                'milestone_id': milestone_id,
-                                'milestone_name': milestone_name
-                            })
-                            self.created_items.append(f"task:{task_id}")
-                            
-                        else:
-                            print(f"⚠️ Stress: Task created but couldn't extract ID from response")
-                    else:
-                        print(f"⚠️ Stress: Unexpected task creation response: {response.text[:200]}")
-                        
-                except Exception as e:
-                    print(f"⚠️ Stress: Error parsing task creation response: {e}")
-                    
-            else:
-                response.failure(f"Stress task creation failed: {response.status_code} - {response.text[:200]}")
-                print(f"❌ Stress: Failed to create task: {response.status_code} - {response.text[:200]}")
-
-    @task(5)  # Stress milestone creation
-    def create_stress_milestone(self):
-        """Create milestones rapidly for stress testing"""
-        # Ensure we have a project
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    return
-            else:
-                return
-        
-        if not self.test_phase_id:
-            self.rapid_phase_creation()
-            return
-            
-        try:
-            # Generate unique test milestone
-            timestamp = int(time.time() * 1000)  # More granular timestamp
-            random_id = uuid.uuid4().hex[:6]
-            milestone_name = f"stress-{self.TEST_MILESTONE_NAME}-{timestamp}-{random_id}"
-            
-            # Create milestone payload
-            milestone_payload = json.dumps([{
-                "name": milestone_name,
-                "phaseId": {"uuid": self.test_phase_id}
-            }])
-            
-            headers = {
-                'Accept': 'text/x-component',
-                'Content-Type': 'text/plain;charset=UTF-8',
-                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
-            }
-            
-            create_url = f"/project/{self.test_project_id}/plan?phase={self.test_phase_id}&view=list"
-            
-            response = self.client.post(
-                create_url,
-                data=milestone_payload,
-                headers=headers,
-                name="stress_milestone_create"
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Stress test milestone created: {milestone_name}")
-                self.created_items.append(f"milestone:{milestone_name}")
-            else:
-                print(f"⚠️ Stress test milestone failed: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Stress test milestone error: {e}")
-    
-    @task(1)
-    def rapid_phase_creation(self):
-        """Create phases rapidly for stress testing"""
-        # Ensure we have a project
-        if not self.test_project_id:
-            if self.CREATE_NEW_PROJECT:
-                self.create_stress_test_project()
-                if not self.test_project_id:
-                    return
-            else:
-                return
-        
-        try:
-            # Generate unique test phase
-            timestamp = int(time.time() * 1000)
-            random_id = uuid.uuid4().hex[:6]
-            phase_name = f"stress-{self.TEST_PHASE_NAME}-{timestamp}-{random_id}"
-            
-            # Create phase payload
-            phase_payload = json.dumps([{
-                "name": phase_name,
-                "projectId": {"uuid": self.test_project_id}
-            }])
-            
-            headers = {
-                'Accept': 'text/x-component',
-                'Content-Type': 'text/plain;charset=UTF-8',
-                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
-            }
-            
-            create_url = f"/project/{self.test_project_id}/plan"
-            
-            response = self.client.post(
-                create_url,
-                data=phase_payload,
-                headers=headers,
-                name="stress_phase_create"
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Stress test phase created: {phase_name}")
-                self.created_items.append(f"phase:{phase_name}")
-                
-                # Try to extract phase ID for milestone creation
-                if not self.test_phase_id:
-                    phase_id = self._extract_phase_id_from_response(response.text)
-                    if phase_id:
-                        self.test_phase_id = phase_id
-                        print(f"🔗 Set stress test phase ID: {phase_id}")
-            else:
-                print(f"⚠️ Stress test phase failed: {response.status_code}")
-                
-        except Exception as e:
-            print(f"❌ Stress test phase error: {e}")
-    
-    def _extract_phase_id_from_response(self, response_text):
-        """Extract phase ID from response"""
-        try:
-            uuid_pattern = r'"uuid":"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"'
-            matches = re.findall(uuid_pattern, response_text)
-            
-            if matches:
-                for uuid_match in matches:
-                    if uuid_match != self.test_project_id:
-                        return uuid_match
-        except Exception as e:
-            print(f"⚠️ Could not extract phase ID: {e}")
-        return None
-    
-    def on_stop(self):
-        """Called when stress test user stops - cleanup projects if created"""
-        print(f"🛑 Stress test completed for user: {self.login_email}")
-        print(f"📊 Created {len(self.created_items)} items total")
-        tasks_count = len(self.created_tasks)
-        milestones_count = len(self.created_milestones)
-        phases_count = len(self.created_phases)
-        projects_count = len(self.created_projects)
-        print(f"📊 Breakdown: {projects_count} projects, {phases_count} phases, {milestones_count} milestones, {tasks_count} tasks")
-        
-        if self.CREATE_NEW_PROJECT and self.created_projects:
-            print(f"🧹 Starting stress test cleanup of {len(self.created_projects)} projects...")
-            for project_info in self.created_projects:
-                project_id = project_info['id']
-                project_name = project_info['name']
-                print(f"🗑️ Stress test: Attempting to delete project {project_name} ({project_id})")
-                
-                # TEMPORARILY DISABLED - Comment out deletion for inspection
-                # success = self.delete_stress_test_project(project_id)
-                # if success:
-                #     print(f"✅ Stress test: Deleted project {project_name}")
-                # else:
-                #     print(f"⚠️ Stress test: Failed to delete project {project_name}")
-                print(f"⚠️ DELETION DISABLED - Stress test project preserved: {project_name} ({project_id})")
-            
-            # print(f"🧹 Stress test cleanup completed")
-            print(f"🧹 Stress test cleanup SKIPPED - Projects preserved for inspection")
+        # Project ID management based on CREATE_NEW_PROJECT flag
+        if self.CREATE_NEW_PROJECT:
+            self.test_project_id = None  # Will be set after project creation
+            print(f"🔄 Stress: CREATE_NEW_PROJECT=true: Will create new project")
         else:
-            print(f"📋 No stress test projects to clean up")
+            self.test_project_id = self.PROJECT_ID  # Use existing project
+            print(f"📂 Stress: Using existing project: {self.PROJECT_ID}")
+        
+        # Phase ID management based on CREATE_NEW_PHASE flag
+        if self.CREATE_NEW_PHASE:
+            self.test_phase_id = None  # Force creation of new phase
+            print(f"🔄 Stress: CREATE_NEW_PHASE=true: Will create new phase (ignoring PHASE_ID)")
+        else:
+            self.test_phase_id = self.PHASE_ID  # Use existing phase if provided
+        
+        print(f"🚀 Starting stress test")
+    
+    def create_stress_test_project(self):
+        """Create a test project for stress testing - simplified version"""
+        try:
+            # Create a unique project name for stress testing
+            timestamp = int(time.time())
+            unique_id = uuid.uuid4().hex[:8]
+            project_name = f"{self.PROJECT_NAME_TXT}-stress-{timestamp}-{unique_id}"
+            
+            # Use same API as main test
+            project_payload = json.dumps([{}])
+            
+            headers = {
+                'Accept': 'text/x-component',
+                'Content-Type': 'text/plain;charset=UTF-8',
+                'Next-Action': '83cef14cae8a2ba4da184ad4fb26161dd04c149c',
+                'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22v2%22%2C%7B%22children%22%3A%5B%22projects%22%2C%7B%22children%22%3A%5B%22(list)%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fv2%2Fprojects%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+            }
+            
+            create_url = "/v2/projects"
+            
+            print(f"🔧 Stress: Creating project using quick create API...")
+            
+            response = self.client.post(
+                create_url,
+                data=project_payload,
+                headers=headers,
+                name="create_stress_project"
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Stress: Successfully called project creation API")
+                
+                # Try to extract project ID from response
+                project_id = self._extract_project_id_from_response(response.text)
+                if project_id:
+                    self.test_project_id = project_id
+                    print(f"🔗 Stress: Set test_project_id to: {project_id}")
+                    
+                    # Track created project for cleanup
+                    self.created_projects.append({
+                        'id': project_id,
+                        'name': project_name
+                    })
+                    print(f"🗂️ Stress: Tracked project for cleanup: {project_id} ({project_name})")
+                else:
+                    print(f"⚠️ Stress: Could not extract project ID from response")
+                    self.test_project_id = self.PROJECT_ID  # Fallback
+            else:
+                print(f"⚠️ Stress: Project creation failed: {response.status_code}")
+                self.test_project_id = self.PROJECT_ID  # Fallback
+                
+        except Exception as e:
+            print(f"💥 Stress: Exception in create_stress_test_project: {e}")
+            self.test_project_id = self.PROJECT_ID  # Fallback
+    
+    def create_stress_test_phase(self):
+        """Create a test phase for stress testing - simplified version"""
+        try:
+            # Create a unique phase name for stress testing
+            timestamp = int(time.time())
+            unique_id = uuid.uuid4().hex[:8]
+            phase_name = f"{self.TEST_PHASE_NAME}-stress-{timestamp}-{unique_id}"
+            
+            # Use the existing phase from environment or default
+            current_phase_id = self.PHASE_ID or "e34bcc9e-18b2-44f7-9384-d1d8af35de78"
+            
+            # Construct the phase creation URL
+            create_url = f"/project/{self.test_project_id}/plan"
+            params = {
+                'phase': current_phase_id,
+                'view': 'board'
+            }
+            
+            # Create the payload - exact format from HAR
+            phase_payload = json.dumps([{
+                "projectId": {"uuid": self.test_project_id},
+                "name": phase_name
+            }])
+            
+            # Set up headers based on HAR analysis
+            headers = {
+                'Content-Type': 'text/plain;charset=UTF-8',
+                'Accept': 'text/x-component',
+                'Next-Action': '5955c4c2ae46e596cde573a76ce226e64e73fb9a',
+                'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+            }
+            
+            print(f"🔧 Stress: Creating phase directly: '{phase_name}' in project: {self.test_project_id}")
+            
+            response = self.client.post(
+                create_url,
+                params=params,
+                data=phase_payload,
+                headers=headers,
+                name="create_stress_phase"
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Stress: Successfully created phase: '{phase_name}'")
+                
+                # Try to extract phase ID from response
+                phase_id = self._extract_phase_id_from_response(response.text)
+                if phase_id:
+                    if not self.test_phase_id:
+                        self.test_phase_id = phase_id
+                        print(f"🔗 Stress: Set test_phase_id to: {phase_id}")
+                    
+                    # Always track created phases
+                    self.created_phases.append({
+                        'id': phase_id,
+                        'name': phase_name,
+                        'projectId': self.test_project_id
+                    })
+                    print(f"🗂️ Stress: Tracked phase ID: {phase_id}")
+                else:
+                    print(f"⚠️ Stress: Could not extract phase ID from response")
+            else:
+                print(f"❌ Stress: Phase creation failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"💥 Stress: Exception in create_stress_test_phase: {e}")
+    
+    def _extract_project_id_from_response(self, response_text):
+        """Extract project ID from response - same as main class"""
+        try:
+            lines = response_text.strip().split('\n')
+            for line in lines:
+                if line.startswith('1:') and 'projectId' in line and 'uuid' in line:
+                    try:
+                        json_part = line[2:]
+                        data = json.loads(json_part)
+                        
+                        if 'response' in data and 'projectId' in data['response']:
+                            project_data = data['response']['projectId']
+                            if 'uuid' in project_data:
+                                project_id = project_data['uuid']
+                                print(f"🎯 Stress: Extracted project ID from response: {project_id}")
+                                return project_id
+                    except (json.JSONDecodeError, KeyError) as e:
+                        continue
+            
+            # Fallback: try to find any UUID pattern
+            import re
+            project_id_pattern = r'"projectId":\s*\{\s*"uuid":\s*"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"\s*\}'
+            matches = re.findall(project_id_pattern, response_text)
+            
+            if matches:
+                project_id = matches[0]
+                print(f"🎯 Stress: Extracted project ID via regex: {project_id}")
+                return project_id
+                        
+        except Exception as e:
+            print(f"⚠️ Stress: Error extracting project ID: {e}")
+            
+        return None
+    
+    def _extract_phase_id_from_response(self, response_text):
+        """Extract phase ID from the Next.js server action response - same as main class"""
+        try:
+            lines = response_text.strip().split('\n')
+            for line in lines:
+                if line.startswith('1:') and 'phase' in line and 'uuid' in line:
+                    try:
+                        json_part = line[2:]
+                        data = json.loads(json_part)
+                        
+                        if 'response' in data and 'phase' in data['response']:
+                            phase_data = data['response']['phase']
+                            if 'id' in phase_data and 'uuid' in phase_data['id']:
+                                return phase_data['id']['uuid']
+                    except (json.JSONDecodeError, KeyError) as e:
+                        continue
+            
+            # Fallback: try to find any UUID pattern
+            import re
+            uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+            matches = re.findall(uuid_pattern, response_text.lower())
+            
+            if matches:
+                return matches[-1]
+                
+        except Exception as e:
+            print(f"⚠️ Stress: Error extracting phase ID: {e}")
+            
+        return None
+    
+    @task(8)  # Highest frequency for stress task creation
+    def create_stress_task(self):
+        """Stress test creating tasks under milestones"""
+        # Import required modules at the start
+        import json
+        import re
+        
+        # Ensure we have a project to work with
+        if not self.test_project_id:
+            if self.CREATE_NEW_PROJECT:
+                print(f"🔗 Stress: No project ID available, creating project first...")
+                self.create_stress_test_project()
+                if not self.test_project_id:
+                    print(f"⚠️ Stress: Project creation failed, cannot create task")
+                    return
+            else:
+                print(f"⚠️ Stress: No project ID available and CREATE_NEW_PROJECT=false")
+                return
+        
+        if not self.test_phase_id:
+            print(f"🔗 Stress: No phase ID available, creating phase first...")
+            self.create_stress_test_phase()
+            if not self.test_phase_id:
+                print(f"⚠️ Stress: Phase creation failed, cannot create task")
+                return
+        
+        # Ensure we have a milestone to attach the task to
+        if not self.created_milestones:
+            print(f"🔗 Stress: No milestones available, creating milestone first...")
+            self.create_stress_milestone()
+            if not self.created_milestones:
+                print(f"⚠️ Stress: Milestone creation failed, cannot create task")
+                return
+        
+        # Use the most recent milestone as the parent
+        milestone_id = self.created_milestones[-1]['id']
+        milestone_name = self.created_milestones[-1]['name']
+        
+        # Create a unique task name for stress testing
+        timestamp = int(time.time() * 1000)  # More granular timestamp for stress testing
+        random_id = uuid.uuid4().hex[:6]
+        task_name = f"stress-{self.TEST_TASK_NAME}-{timestamp}-{random_id}"
+        
+        # Use the same API as the main test
+        task_url = f"/project/{self.test_project_id}/plan"
+        params = {
+            'phase': self.test_phase_id,
+            'view': 'board'
+        }
+        
+        task_payload = json.dumps([{
+            "name": task_name,
+            "parentId": {"uuid": milestone_id}
+        }])
+        
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + self.test_project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + self.test_project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
+        
+        print(f"📝 Stress: Creating task '{task_name}' under milestone '{milestone_name}' ({milestone_id})")
+        
+        with self.client.post(
+            task_url,
+            params=params,
+            data=task_payload,
+            headers=headers,
+            catch_response=True,
+            name="create_stress_task"
+        ) as response:
+            if response.status_code == 200:
+                response.success()
+                
+                try:
+                    if 'task' in response.text and 'response' in response.text:
+                        json_match = re.search(r'1:\{\"response\":\{\"task\":\{[^}]*\"id\":\{\"uuid\":\"([^\"]+)\"', response.text)
+                        if json_match:
+                            task_id = json_match.group(1)
+                            print(f"✅ Stress: Successfully created task '{task_name}' with ID: {task_id}")
+                            
+                            self.created_tasks.append({
+                                'id': task_id,
+                                'name': task_name,
+                                'milestone_id': milestone_id,
+                                'milestone_name': milestone_name
+                            })
+                            self.created_items.append(f"task:{task_id}")
+                            
+                        else:
+                            print(f"⚠️ Stress: Task created but couldn't extract ID from response")
+                    else:
+                        print(f"⚠️ Stress: Unexpected task creation response: {response.text[:200]}")
+                        
+                except Exception as e:
+                    print(f"⚠️ Stress: Error parsing task creation response: {e}")
+                    
+            else:
+                response.failure(f"Stress task creation failed: {response.status_code} - {response.text[:200]}")
+                print(f"❌ Stress: Failed to create task: {response.status_code} - {response.text[:200]}")
+
+    @task(5)  # Stress milestone creation
+    def create_stress_milestone(self):
+        """Create milestones rapidly for stress testing"""
+        # Ensure we have a project
+        if not self.test_project_id:
+            if self.CREATE_NEW_PROJECT:
+                self.create_stress_test_project()
+                if not self.test_project_id:
+                    return
+            else:
+                return
+        
+        if not self.test_phase_id:
+            self.create_stress_test_phase()
+            return
+            
+        try:
+            # Generate unique test milestone
+            timestamp = int(time.time() * 1000)  # More granular timestamp
+            random_id = uuid.uuid4().hex[:6]
+            milestone_name = f"stress-{self.TEST_MILESTONE_NAME}-{timestamp}-{random_id}"
+            
+            # Create milestone payload
+            milestone_payload = json.dumps([{
+                "name": milestone_name,
+                "phaseId": {"uuid": self.test_phase_id}
+            }])
+            
+            headers = {
+                'Accept': 'text/x-component',
+                'Content-Type': 'text/plain;charset=UTF-8',
+                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
+            }
+            
+            create_url = f"/project/{self.test_project_id}/plan?phase={self.test_phase_id}&view=list"
+            
+            response = self.client.post(
+                create_url,
+                data=milestone_payload,
+                headers=headers,
+                name="stress_milestone_create"
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Stress test milestone created: {milestone_name}")
+                self.created_items.append(f"milestone:{milestone_name}")
+            else:
+                print(f"⚠️ Stress test milestone failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Stress test milestone error: {e}")
+    
+    @task(1)
+    def create_stress_phase_task(self):
+        """Create phases rapidly for stress testing"""
+        # Ensure we have a project
+        if not self.test_project_id:
+            if self.CREATE_NEW_PROJECT:
+                self.create_stress_test_project()
+                if not self.test_project_id:
+                    return
+            else:
+                return
+        
+        try:
+            # Generate unique test phase
+            timestamp = int(time.time() * 1000)
+            random_id = uuid.uuid4().hex[:6]
+            phase_name = f"stress-{self.TEST_PHASE_NAME}-{timestamp}-{random_id}"
+            
+            # Create phase payload
+            phase_payload = json.dumps([{
+                "name": phase_name,
+                "projectId": {"uuid": self.test_project_id}
+            }])
+            
+            headers = {
+                'Accept': 'text/x-component',
+                'Content-Type': 'text/plain;charset=UTF-8',
+                'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5'
+            }
+            
+            create_url = f"/project/{self.test_project_id}/plan"
+            
+            response = self.client.post(
+                create_url,
+                data=phase_payload,
+                headers=headers,
+                name="stress_phase_create"
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Stress test phase created: {phase_name}")
+                self.created_items.append(f"phase:{phase_name}")
+                
+                # Try to extract phase ID for milestone creation
+                if not self.test_phase_id:
+                    phase_id = self._extract_phase_id_from_response(response.text)
+                    if phase_id:
+                        self.test_phase_id = phase_id
+                        print(f"🔗 Set stress test phase ID: {phase_id}")
+            else:
+                print(f"⚠️ Stress test phase failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Stress test phase error: {e}")
+    
+    def _extract_phase_id_from_response(self, response_text):
+        """Extract phase ID from response"""
+        try:
+            uuid_pattern = r'"uuid":"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"'
+            matches = re.findall(uuid_pattern, response_text)
+            
+            if matches:
+                for uuid_match in matches:
+                    if uuid_match != self.test_project_id:
+                        return uuid_match
+        except Exception as e:
+            print(f"⚠️ Could not extract phase ID: {e}")
+        return None
+
 
 # Test runner for development
 if __name__ == "__main__":
