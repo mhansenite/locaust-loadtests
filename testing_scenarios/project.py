@@ -252,6 +252,11 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             return
         
         # Create milestone using the common function
+        print(f"🔍 CALLING create_milestone with:")
+        print(f"   - project_id: {self.test_project_id}")
+        print(f"   - selected_phase_id: {selected_phase_id}")
+        print(f"   - milestone_name_base: {self.TEST_MILESTONE_NAME}")
+        
         milestone_info = create_milestone(
             self.client, 
             self.test_project_id, 
@@ -259,12 +264,14 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             self.TEST_MILESTONE_NAME
         )
         
+        print(f"🔍 create_milestone returned: {milestone_info}")
+        
         if milestone_info:
             # Store the created milestone for tracking
             self.created_milestones.append(milestone_info)
-            print(f"Successfully created milestone '{milestone_info['name']}' with ID: {milestone_info['id']}")
+            print(f"✅ Successfully created milestone '{milestone_info['name']}' with ID: {milestone_info['id']}")
         else:
-            print(f"❌ Failed to create milestone")
+            print(f"❌ Failed to create milestone - check debug logs above for details")
     
     @task(5)  # Balanced weight for task creation (each call creates 1-10 tasks)
     def create_task(self):

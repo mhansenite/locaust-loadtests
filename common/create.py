@@ -15,8 +15,7 @@ from .extractdata import (
     extract_phase_id_from_response,
     extract_milestone_id_from_response,
     extract_task_id_from_response,
-    extract_subtask_id_from_response,
-    get_dynamic_headers
+    extract_subtask_id_from_response
 )
 
 
@@ -44,8 +43,13 @@ def create_project(client, project_name_base="LoadTestProject"):
         # Project creation payload - exact format from HAR (quick create)
         project_payload = json.dumps([{}])
         
-        # Get dynamic headers for project creation
-        headers = get_dynamic_headers(client, "project_create")
+        # Headers from CreateProject.har - hardcoded verified headers
+        headers = {
+            'Accept': 'text/x-component',
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Next-Action': '83cef14cae8a2ba4da184ad4fb26161dd04c149c',  # From CreateProject.har
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22v2%22%2C%7B%22children%22%3A%5B%22projects%22%2C%7B%22children%22%3A%5B%22(list)%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fv2%2Fprojects%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         # Project creation URL (from CreateProject.har)
         create_url = "/v2/projects"
@@ -97,7 +101,7 @@ def create_project(client, project_name_base="LoadTestProject"):
                 return None
                 
     except Exception as e:
-        print(f"💥 Exception in create_project: {e}")
+        print(f"Exception in create_project: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -138,8 +142,12 @@ def rename_project(client, project_id, new_name):
             "name": new_name
         }])
         
-        # Get dynamic headers for project rename
-        headers = get_dynamic_headers(client, "project_rename")
+        # Headers from project rename.har - hardcoded verified headers
+        headers = {
+            'Accept': 'text/x-component',
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Next-Action': '75aaedb01b5c98f20a569b8a7a97ee1fa04c3acf'  # From rename HAR
+        }
         
         print(f"Attempting to rename project to: '{new_name}' using correct API")
         
@@ -188,8 +196,13 @@ def delete_project(client, project_id):
             "projectIds": [{"uuid": project_id}]
         }])
         
-        # Get dynamic headers for project deletion
-        headers = get_dynamic_headers(client, "project_delete")
+        # Headers from DeleteProject.har - hardcoded verified headers
+        headers = {
+            'Accept': 'text/x-component',
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Next-Action': '0a17c17cfd2792b0b228f1f194c95d78f6cb5330',  # From HAR
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22v2%22%2C%7B%22children%22%3A%5B%22projects%22%2C%7B%22children%22%3A%5B%22(list)%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         # Project deletion URL (from DeleteProject.har)
         delete_url = "/v2/projects"
@@ -216,7 +229,7 @@ def delete_project(client, project_id):
                 return False
                 
     except Exception as e:
-        print(f"💥 Exception in delete_project: {e}")
+        print(f"Exception in delete_project: {e}")
         return False
 
 
@@ -259,8 +272,13 @@ def create_phase(client, project_id, phase_name_base="LoadTestPhase", context_ph
             "name": phase_name
         }])
         
-        # Get dynamic headers for phase creation
-        headers = get_dynamic_headers(client, "phase_create", project_id, current_phase_id)
+        # Set up headers based on HAR analysis - hardcoded verified headers
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '5955c4c2ae46e596cde573a76ce226e64e73fb9a',  # From HAR
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         print(f"Creating phase directly: '{phase_name}' in project: {project_id}")
         print(f"Using direct phase creation API with existing phase context: {current_phase_id}")
@@ -302,7 +320,7 @@ def create_phase(client, project_id, phase_name_base="LoadTestPhase", context_ph
                 return None
                 
     except Exception as e:
-        print(f"💥 Exception in create_phase: {e}")
+        print(f"Exception in create_phase: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -343,10 +361,18 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
             "phaseId": {"uuid": phase_id}
         }])
         
-        # Get dynamic headers for milestone creation
-        headers = get_dynamic_headers(client, "milestone_create", project_id, phase_id)
+        # Set up headers based on CreateMilestone.har analysis - hardcoded verified headers
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': 'fad80c9e91456a1347f0b756268242cbcb7d9cd5',  # From CreateMilestone.har
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         print(f"Creating milestone '{milestone_name}' directly in phase {phase_id}")
+        print(f"URL: {milestone_url} with params: {params}")
+        print(f"Payload: {milestone_payload}")
+        print(f"Headers Next-Action: {headers.get('Next-Action', 'NOT_SET')}")
         
         with client.post(
             milestone_url,
@@ -356,40 +382,84 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
             catch_response=True,
             name="create_milestone"
         ) as response:
-            print(f"Milestone creation response status: {response.status_code}")
-            print(f"Milestone creation response: {response.text[:500]}...")
+            print(f"Response status: {response.status_code}")
+            print(f"Response headers: {dict(response.headers)}")
+            print(f"Full response text: {response.text}")
             
             if response.status_code == 200:
                 response.success()
                 
-                # Check for successful milestone creation in response
-                if 'milestone' in response.text and 'response' in response.text:
-                    # Try to extract milestone ID from response
-                    milestone_id = extract_milestone_id_from_response(response.text)
-                    if milestone_id:
-                        print(f"Created milestone: '{milestone_name}' with ID: {milestone_id}")
-                        return {
-                            'id': milestone_id,
-                            'name': milestone_name,
-                            'phase_id': phase_id
-                        }
+                # Parse the response to check for errors
+                try:
+                    # The response appears to be in a special format with multiple JSON objects
+                    response_lines = response.text.strip().split('\n')
+                    print(f"Response has {len(response_lines)} lines")
+                    
+                    for i, line in enumerate(response_lines):
+                        print(f"Line {i}: {line}")
+                        if line.startswith('1:') and 'error' in line:
+                            # Parse the JSON part after "1:"
+                            json_part = line[2:]  # Remove "1:" prefix
+                            try:
+                                error_data = json.loads(json_part)
+                                print(f"Parsed error data: {error_data}")
+                                
+                                if error_data.get('error'):
+                                    error_msg = error_data['error'].get('message', 'Unknown error')
+                                    error_metadata = error_data['error'].get('metadata', {})
+                                    print(f"❌ MILESTONE ERROR: {error_msg}")
+                                    print(f"❌ MILESTONE ERROR METADATA: {error_metadata}")
+                                    
+                                    # Log specific debugging information
+                                    print(f"🔍 DEBUG INFO:")
+                                    print(f"  - Project ID: {project_id}")
+                                    print(f"  - Phase ID: {phase_id}")
+                                    print(f"  - Milestone name: {milestone_name}")
+                                    print(f"  - Request URL: {milestone_url}?{params}")
+                                    
+                                    return None
+                                elif error_data.get('response') is None:
+                                    print(f"❌ MILESTONE ERROR: Response is null (no specific error given)")
+                                    return None
+                                    
+                            except json.JSONDecodeError as je:
+                                print(f"Could not parse JSON from line: {je}")
+                    
+                    # Check for successful milestone creation in response
+                    if 'milestone' in response.text or ('response' in response.text and 'error' not in response.text):
+                        # Try to extract milestone ID from response
+                        milestone_id = extract_milestone_id_from_response(response.text)
+                        if milestone_id:
+                            print(f"✅ Created milestone: '{milestone_name}' with ID: {milestone_id}")
+                            return {
+                                'id': milestone_id,
+                                'name': milestone_name,
+                                'phase_id': phase_id
+                            }
+                        else:
+                            print(f"⚠️ Milestone created but couldn't extract ID from response")
+                            return {
+                                'id': 'unknown',
+                                'name': milestone_name,
+                                'phase_id': phase_id
+                            }
                     else:
-                        print(f"⚠️ Milestone created but couldn't extract ID from response")
-                        return {
-                            'id': 'unknown',
-                            'name': milestone_name,
-                            'phase_id': phase_id
-                        }
-                else:
-                    print(f"⚠️ Unexpected milestone creation response: {response.text[:200]}")
+                        print(f"⚠️ Unexpected milestone creation response format")
+                        return None
+                        
+                except Exception as parse_error:
+                    print(f"❌ Error parsing milestone response: {parse_error}")
+                    print(f"🔍 Raw response for debugging: {response.text}")
                     return None
+                    
             else:
                 response.failure(f"Milestone creation failed: {response.status_code}")
-                print(f"❌ Milestone creation failed: {response.status_code} - {response.text[:200]}")
+                print(f"❌ Milestone creation failed: {response.status_code}")
+                print(f"🔍 Response body: {response.text}")
                 return None
                 
     except Exception as e:
-        print(f"💥 Exception in create_milestone: {e}")
+        print(f"Exception in create_milestone: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -428,8 +498,13 @@ def create_task(client, project_id, phase_id, milestone_id, task_name_base="Load
             "parentId": {"uuid": milestone_id}
         }])
         
-        # Get dynamic headers for task creation
-        headers = get_dynamic_headers(client, "task_create", project_id, phase_id)
+        # Set up headers based on createingatask.har analysis - hardcoded verified headers
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         print(f"Creating task '{task_name}' under milestone {milestone_id}")
         
@@ -478,7 +553,7 @@ def create_task(client, project_id, phase_id, milestone_id, task_name_base="Load
                 return None
                 
     except Exception as e:
-        print(f"💥 Exception in create_task: {e}")
+        print(f"Exception in create_task: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -519,8 +594,13 @@ def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_ba
             "type": "subtask"  # Specify that this is a subtask
         }])
         
-        # Get dynamic headers for subtask creation
-        headers = get_dynamic_headers(client, "subtask_create", project_id, phase_id)
+        # Use same headers as task creation for subtasks - hardcoded verified headers
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '343a58a42088e8b2fca6b83aa952bd173682c1a1',  # From createingatask.har (same as task)
+            'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
+        }
         
         print(f"Creating subtask '{subtask_name}' under parent task {parent_task_id}")
         
@@ -569,7 +649,7 @@ def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_ba
                 return None
                 
     except Exception as e:
-        print(f"💥 Exception in create_subtask: {e}")
+        print(f"Exception in create_subtask: {e}")
         import traceback
         traceback.print_exc()
         return None
