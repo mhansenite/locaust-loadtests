@@ -455,7 +455,7 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
             else:
                 response.failure(f"Milestone creation failed: {response.status_code}")
                 print(f"❌ Milestone creation failed: {response.status_code}")
-                print(f"🔍 Response body: {response.text}")
+                print(f"Response body: {response.text}")
                 return None
                 
     except Exception as e:

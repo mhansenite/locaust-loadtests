@@ -53,8 +53,8 @@ def extract_project_id_from_response(response_text):
 
 def extract_phase_id_from_response(response_text):
     """Extract phase ID from the Next.js server action response"""
-    print(f"🔍 PHASE EXTRACT DEBUG: Attempting to extract phase ID from response")
-    print(f"🔍 PHASE EXTRACT DEBUG: Response length: {len(response_text)} characters")
+    print(f"PHASE EXTRACT DEBUG: Attempting to extract phase ID from response")
+    print(f"PHASE EXTRACT DEBUG: Response length: {len(response_text)} characters")
     
     try:
         # Handle Next.js server action response format
@@ -64,38 +64,38 @@ def extract_phase_id_from_response(response_text):
         
         # Look for the JSON part with the phase data
         lines = response_text.strip().split('\n')
-        print(f"🔍 PHASE EXTRACT DEBUG: Response has {len(lines)} lines")
+        print(f"PHASE EXTRACT DEBUG: Response has {len(lines)} lines")
         
         for i, line in enumerate(lines):
-            print(f"🔍 PHASE EXTRACT DEBUG: Line {i}: {line[:100]}..." if len(line) > 100 else f"🔍 PHASE EXTRACT DEBUG: Line {i}: {line}")
+            print(f"PHASE EXTRACT DEBUG: Line {i}: {line[:100]}..." if len(line) > 100 else f"PHASE EXTRACT DEBUG: Line {i}: {line}")
             
             if line.startswith('1:'):
                 try:
                     # Remove the "1:" prefix
                     json_part = line[2:]
                     data = json.loads(json_part)
-                    print(f"🔍 PHASE EXTRACT DEBUG: Parsed JSON data: {data}")
+                    print(f"PHASE EXTRACT DEBUG: Parsed JSON data: {data}")
                     
                     # Primary logic for direct phase creation response (correct format)
                     if 'response' in data and 'phase' in data['response']:
                         phase_data = data['response']['phase']
                         if 'id' in phase_data and 'uuid' in phase_data['id']:
                             phase_id = phase_data['id']['uuid']
-                            print(f"✅ Found direct phase ID: {phase_id}")
+                            print(f"Found direct phase ID: {phase_id}")
                             return phase_id
                     
                     # Fallback: Check if this is a templates response (old behavior)
                     elif 'response' in data and 'templates' in data['response']:
                         templates = data['response']['templates']
                         print(f"⚠️ PHASE EXTRACT DEBUG: Got templates response instead of phase creation - this suggests wrong API or headers")
-                        print(f"🔍 PHASE EXTRACT DEBUG: Found {len(templates)} templates in response")
+                        print(f"PHASE EXTRACT DEBUG: Found {len(templates)} templates in response")
                         
                         # Look for the most recently created template (our new phase)
                         # The newest phase should be the one with our naming pattern
                         for template in templates:
                             template_name = template.get('name', '')
                             template_id = template.get('id', {}).get('uuid')
-                            print(f"🔍 PHASE EXTRACT DEBUG: Template: '{template_name}' -> {template_id}")
+                            print(f"PHASE EXTRACT DEBUG: Template: '{template_name}' -> {template_id}")
                             
                             # Check if this template matches our naming pattern (LoadTestPhase-timestamp-id)
                             if 'LoadTestPhase-' in template_name and template_id:
@@ -109,14 +109,14 @@ def extract_phase_id_from_response(response_text):
                             print(f"⚠️ Using fallback (last template): '{fallback_name}' -> {fallback_id}")
                             return fallback_id
                     else:
-                        print(f"🔍 PHASE EXTRACT DEBUG: No phase or templates found in response")
+                        print(f"PHASE EXTRACT DEBUG: No phase or templates found in response")
                         
                 except (json.JSONDecodeError, KeyError) as e:
                     print(f"⚠️ Could not parse phase response line: {e}")
                     continue
         
         # Fallback: try to find any UUID pattern in the response
-        print(f"🔍 PHASE EXTRACT DEBUG: Primary extraction failed, trying regex fallback")
+        print(f"PHASE EXTRACT DEBUG: Primary extraction failed, trying regex fallback")
         uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         matches = re.findall(uuid_pattern, response_text.lower())
         
@@ -126,7 +126,7 @@ def extract_phase_id_from_response(response_text):
             print(f"⚠️ Using regex fallback (last UUID): {fallback_id}")
             return fallback_id
         else:
-            print(f"🔍 PHASE EXTRACT DEBUG: No UUIDs found in response")
+            print(f"PHASE EXTRACT DEBUG: No UUIDs found in response")
             
     except Exception as e:
         print(f"❌ Error extracting phase ID: {e}")
@@ -137,66 +137,66 @@ def extract_phase_id_from_response(response_text):
 
 def extract_milestone_id_from_response(response_text):
     """Extract milestone ID from the Next.js server action response"""
-    print(f"🔍 EXTRACT DEBUG: Attempting to extract milestone ID from response")
-    print(f"🔍 EXTRACT DEBUG: Response length: {len(response_text)} characters")
+    print(f"EXTRACT DEBUG: Attempting to extract milestone ID from response")
+    print(f"EXTRACT DEBUG: Response length: {len(response_text)} characters")
     
     try:
         # Expected format: 1:{"response":{"milestone":{"id":{"uuid":"milestone_id_here"},...}}}
         
         # Look for the JSON part with the milestone data
         lines = response_text.strip().split('\n')
-        print(f"🔍 EXTRACT DEBUG: Response has {len(lines)} lines")
+        print(f"EXTRACT DEBUG: Response has {len(lines)} lines")
         
         for i, line in enumerate(lines):
-            print(f"🔍 EXTRACT DEBUG: Line {i}: {line[:100]}..." if len(line) > 100 else f"🔍 EXTRACT DEBUG: Line {i}: {line}")
+            print(f"EXTRACT DEBUG: Line {i}: {line[:100]}..." if len(line) > 100 else f"EXTRACT DEBUG: Line {i}: {line}")
             
             if line.startswith('1:'):
-                print(f"🔍 EXTRACT DEBUG: Found line starting with '1:' - checking for milestone data")
+                print(f"EXTRACT DEBUG: Found line starting with '1:' - checking for milestone data")
                 
                 if 'milestone' in line and 'uuid' in line:
-                    print(f"🔍 EXTRACT DEBUG: Line contains 'milestone' and 'uuid' - attempting JSON parse")
+                    print(f"EXTRACT DEBUG: Line contains 'milestone' and 'uuid' - attempting JSON parse")
                     try:
                         # Remove the "1:" prefix
                         json_part = line[2:]
                         data = json.loads(json_part)
-                        print(f"🔍 EXTRACT DEBUG: Successfully parsed JSON: {data}")
+                        print(f"EXTRACT DEBUG: Successfully parsed JSON: {data}")
                         
                         # Navigate to the milestone UUID
                         if 'response' in data and 'milestone' in data['response']:
                             milestone_data = data['response']['milestone']
-                            print(f"🔍 EXTRACT DEBUG: Found milestone data: {milestone_data}")
+                            print(f"EXTRACT DEBUG: Found milestone data: {milestone_data}")
                             
                             if 'id' in milestone_data and 'uuid' in milestone_data['id']:
                                 milestone_id = milestone_data['id']['uuid']
-                                print(f"✅ Extracted milestone ID from response: {milestone_id}")
+                                print(f"Extracted milestone ID from response: {milestone_id}")
                                 return milestone_id
                             else:
-                                print(f"🔍 EXTRACT DEBUG: Milestone data missing 'id' or 'uuid' field")
+                                print(f"EXTRACT DEBUG: Milestone data missing 'id' or 'uuid' field")
                         elif 'response' in data:
-                            print(f"🔍 EXTRACT DEBUG: Response found but no milestone: {data['response']}")
+                            print(f"EXTRACT DEBUG: Response found but no milestone: {data['response']}")
                         else:
-                            print(f"🔍 EXTRACT DEBUG: No 'response' key in data")
+                            print(f"EXTRACT DEBUG: No 'response' key in data")
                             
                     except (json.JSONDecodeError, KeyError) as e:
                         print(f"⚠️ Could not parse milestone response line: {e}")
-                        print(f"🔍 EXTRACT DEBUG: Failed JSON part: {json_part[:200]}...")
+                        print(f"EXTRACT DEBUG: Failed JSON part: {json_part[:200]}...")
                         continue
                 else:
-                    print(f"🔍 EXTRACT DEBUG: Line with '1:' but missing 'milestone' or 'uuid'")
+                    print(f"EXTRACT DEBUG: Line with '1:' but missing 'milestone' or 'uuid'")
             else:
-                print(f"🔍 EXTRACT DEBUG: Line doesn't start with '1:' - skipping")
+                print(f"EXTRACT DEBUG: Line doesn't start with '1:' - skipping")
         
         # Fallback: try to find milestone ID pattern in the response
-        print(f"🔍 EXTRACT DEBUG: Primary extraction failed, trying regex fallback")
+        print(f"EXTRACT DEBUG: Primary extraction failed, trying regex fallback")
         milestone_id_pattern = r'"milestone":\s*\{\s*[^}]*"id":\s*\{\s*"uuid":\s*"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"\s*\}'
         matches = re.findall(milestone_id_pattern, response_text)
         
         if matches:
             milestone_id = matches[0]
-            print(f"✅ Extracted milestone ID via regex: {milestone_id}")
+            print(f"Extracted milestone ID via regex: {milestone_id}")
             return milestone_id
         else:
-            print(f"🔍 EXTRACT DEBUG: Regex fallback also failed - no milestone UUID found")
+            print(f"EXTRACT DEBUG: Regex fallback also failed - no milestone UUID found")
                     
     except Exception as e:
         print(f"❌ Error extracting milestone ID: {e}")
