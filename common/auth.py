@@ -111,7 +111,7 @@ class AuthenticatedUser(HttpUser):
             # Step 5: Verify authentication success
             if self._is_authentication_successful(auth_response):
                 self.is_authenticated = True
-                print("✅ Authentication successful")
+                print("Authentication successful")
                 self._complete_authentication_flow()
                 self._get_session_data()
                 return True
@@ -119,7 +119,7 @@ class AuthenticatedUser(HttpUser):
                 # Check for session cookies as fallback
                 session_cookies = [name for name in self.client.cookies.keys() if 'session' in name.lower()]
                 if session_cookies:
-                    print("✅ Authentication successful (session cookies found)")
+                    print("Authentication successful (session cookies found)")
                     self.is_authenticated = True
                     self._complete_authentication_flow()
                     self._get_session_data()
@@ -235,7 +235,7 @@ class AuthenticatedUser(HttpUser):
                     if isinstance(session_data, dict) and session_data:
                         self.session_data = session_data
                         if 'accessToken' in session_data:
-                            print(f"✅ Access token found: {session_data['accessToken'][:50]}...")
+                            print(f"Access token found: {session_data['accessToken'][:50]}...")
                     else:
                         self.session_data = {}
                         
@@ -283,11 +283,11 @@ if __name__ == "__main__":
         user = AuthenticatedUser(env)
         
         if user.authenticate():
-            print("🎉 Authentication test: PASSED")
+            print("Authentication test: PASSED")
             
             response = user.make_authenticated_request('GET', '/projects')
             if response.status_code == 200:
-                print("🎉 Authenticated request test: PASSED")
+                print("Authenticated request test: PASSED")
             else:
                 print(f"⚠️ Authenticated request test: Status {response.status_code}")
         else:
