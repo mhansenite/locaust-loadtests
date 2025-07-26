@@ -28,6 +28,8 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         bool: True if successful, False otherwise
     """
     
+    print(f"[UPDATE] Starting update_task_status for task: {task_id[:8]}... -> '{status_name}'")
+    
     debug_print(f"TASK STATUS UPDATE DEBUG START")
     debug_print(f"   - Project ID: {project_id}")
     debug_print(f"   - Phase ID: {phase_id}")
@@ -38,14 +40,19 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
     # Import dynamic status extraction from extractdata
     from .extractdata import get_available_task_statuses_from_api, get_fallback_task_statuses
     
+    print(f"[UPDATE] Fetching available statuses from API...")
+    
     # Get the available statuses dynamically from the API
     debug_print(f"FETCHING available statuses for status update...")
     available_statuses = get_available_task_statuses_from_api(client, project_id, phase_id)
+    
+    print(f"[UPDATE] API returned {len(available_statuses) if available_statuses else 0} statuses")
     
     # Fallback if API call failed
     if not available_statuses:
         debug_print(f"⚠️ Could not fetch statuses from API, using fallback statuses")
         available_statuses = get_fallback_task_statuses()
+        print(f"[UPDATE] Using fallback statuses: {len(available_statuses)} statuses")
     
     # Log all available statuses for debugging
     debug_print(f"AVAILABLE status options:")
@@ -59,25 +66,35 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         for status_name, status_info in available_statuses.items()
     }
     
+    print(f"[UPDATE] Looking for status '{status_name}' in available options...")
+    
     # Get status ID
     status_id = status_mapping.get(status_name)
     if not status_id:
+        print(f"[UPDATE] ❌ Unknown status: '{status_name}'. Available: {list(status_mapping.keys())}")
         debug_print(f"❌ Unknown status: '{status_name}'. Available: {list(status_mapping.keys())}")
         debug_print(f"🔍 Status mapping debug: {status_mapping}")
         return False
     
+    print(f"[UPDATE] Found status UUID: {status_id[:8]}... for '{status_name}'")
     debug_print(f"🔍 Using status UUID: {status_id} for '{status_name}'")
     
     try:
+        print(f"[UPDATE] Importing update_task_status_api from view module...")
+        
         # Import view function (avoiding circular imports)
         from .view import update_task_status_api
         
+        print(f"[UPDATE] Calling update_task_status_api...")
         debug_print(f"CALLING update_task_status_api...")
         
         # Use view.py function to make the API call
         success, response_text, status_code = update_task_status_api(
             client, project_id, phase_id, task_id, status_id, explanation
         )
+        
+        print(f"[UPDATE] API call completed - Success: {success}, Status: {status_code}")
+        print(f"[UPDATE] Response preview: {response_text[:500] if response_text else 'NO_RESPONSE'}...")
         
         debug_print(f"🔍 API call returned:")
         debug_print(f"   - Success: {success}")
@@ -86,6 +103,8 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         debug_print(f"   - Response Preview: {response_text[:300] if response_text else 'NO_RESPONSE'}")
         
         if success:
+            print(f"[UPDATE] ✅ Successfully updated task status to '{status_name}'")
+            
             try:
                 # Parse response for detailed analysis
                 debug_print(f"🔍 Analyzing response content...")
@@ -145,22 +164,27 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
                 return True  # Assume success if 200 OK
                 
         elif status_code == 401:
+            print(f"[UPDATE] ❌ Authentication failed for status update")
             debug_print(f"❌ Authentication failed for status update")
             return False
         elif status_code == 403:
+            print(f"[UPDATE] ❌ Access denied for status update")
             debug_print(f"❌ Access denied for status update")
             return False
         else:
+            print(f"[UPDATE] ❌ Status update failed with status code: {status_code}")
             debug_print(f"❌ Status update failed with status code: {status_code}")
             debug_print(f"🔍 Error response: {response_text}")
             return False
                 
     except Exception as e:
+        print(f"[UPDATE] ❌ Exception in update_task_status: {e}")
         debug_print(f"💥 Exception in update_task_status: {e}")
         import traceback
         traceback.print_exc()
         return False
     finally:
+        print(f"[UPDATE] Completed update_task_status for task: {task_id[:8]}...")
         debug_print(f"🔍 TASK STATUS UPDATE DEBUG END")
         debug_print(f"")  # Add blank line for readability
 

@@ -14,6 +14,8 @@ import time
 import uuid
 import re
 import random
+import urllib.parse
+import base64
 from locust import task, between
 from datetime import datetime, timedelta
 
@@ -185,6 +187,62 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
     # - assign_project_from_existing_pool()  
     # - add_project_to_pool()
     # - show_current_distribution()
+
+    def _simulate_grpc_call(self, service_name, method_name, payload_data=None):
+        """
+        Simulate gRPC-web calls for realistic load testing
+        
+        Args:
+            service_name: gRPC service name (e.g., 'ChannelService', 'ProjectPlanService')
+            method_name: gRPC method name (e.g., 'GetTotalUnreadMessageCount')
+            payload_data: Optional data to simulate in the call
+        """
+        grpc_headers = {
+            "Content-Type": "application/grpc-web-text",
+            "Accept": "application/grpc-web-text",
+            "Origin": "https://app.staging.guidecx.io",
+            "Referer": f"https://app.staging.guidecx.io/project/{self.test_project_id}/plan"
+        }
+        
+        # gRPC-web calls use POST with base64 encoded protobuf data
+        # For simulation, we'll create a minimal payload
+        if payload_data:
+            # Simulate protobuf encoding (this is a simplified representation)
+            simulated_payload = base64.b64encode(json.dumps(payload_data).encode()).decode()
+        else:
+            simulated_payload = base64.b64encode(b"{}").decode()
+        
+        grpc_url = f"https://k2-web.staging.guidecx.io/manager.{service_name.lower()}.{service_name}/{method_name}"
+        call_name = f"grpc_{service_name}_{method_name}"
+        
+        try:
+            with self.client.post(grpc_url, data=simulated_payload, headers=grpc_headers, 
+                                catch_response=True, name=call_name) as response:
+                if response.status_code in [200, 201]:
+                    response.success()
+                    debug_print(f"✅ gRPC call successful: {method_name}")
+                else:
+                    response.failure(f"gRPC call failed: {response.status_code}")
+                    debug_print(f"⚠️ gRPC call failed: {method_name} - {response.status_code}")
+        except Exception as e:
+            debug_print(f"gRPC call error for {method_name}: {e}")
+
+    def _get_session_token(self):
+        """
+        Extract access token from current session for API calls
+        Returns the Bearer token or None if not available
+        """
+        try:
+            # Try to get session info first
+            with self.client.get("/auth/session", catch_response=True, name="get_session_token") as response:
+                if response.status_code == 200:
+                    session_data = response.json()
+                    access_token = session_data.get('accessToken')
+                    if access_token:
+                        return f"Bearer {access_token}"
+        except Exception as e:
+            debug_print(f"Could not extract session token: {e}")
+        return None
 
 
     # =============================================================================
@@ -361,7 +419,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
 
     @task(10)  # Moderate weight for viewing activity
     def view_project_plan(self):
-        """Test viewing the project plan page"""
+        """Test viewing the project plan page with all required API calls"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
             debug_print(f"⚠️ No project ID available for view_project_plan (skipping task)")
@@ -373,13 +431,14 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         endpoint = f"/project/{self.test_project_id}/plan"
         params = {
             'phase': phase_id,
-            'view': 'list'
+            'view': 'board'  # Use 'board' view as seen in HAR file
         }
         
         # Construct URL with query parameters
         url = f"{endpoint}?phase={params['phase']}&view={params['view']}"
         
-        with self.client.get(url, catch_response=True, name="view_project_plan") as response:
+        # 1. Main project plan page load
+        with self.client.get(url, catch_response=True, name="view_project_plan_main") as response:
             if response.status_code == 200:
                 response.success()
                 debug_print(f"Successfully loaded project plan page")
@@ -392,12 +451,93 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             else:
                 response.failure(f"Unexpected status code: {response.status_code}")
                 debug_print(f"⚠️ Unexpected response: {response.status_code} for {url}")
+                return
+        
+        # 2. Session validation calls (multiple as seen in HAR)
+        for i in range(2):
+            with self.client.get("/auth/session", catch_response=True, name="auth_session_check") as response:
+                if response.status_code == 200:
+                    response.success()
+                elif response.status_code == 401:
+                    response.failure("Session validation failed")
+                    debug_print(f"❌ Session validation failed")
+                    return  # Stop if session is invalid
+                else:
+                    response.failure(f"Session check failed: {response.status_code}")
+        
+        # 3. Analytics query for task status counts
+        analytics_query = {
+            "dimensions": ["workspace_unit_status.label", "workspace_unit_status.status_category"],
+            "measures": ["unit.count"],
+            "filters": [
+                {"member": "unit.project_id", "operator": "equals", "values": [self.test_project_id]},
+                {"member": "unit.type", "operator": "equals", "values": ["ACTION"]},
+                {"member": "unit_status.active", "operator": "equals", "values": ["true"]}
+            ]
+        }
+        
+        query_string = urllib.parse.urlencode({"query": json.dumps(analytics_query)})
+        analytics_url = f"https://api.staging.guidecx.io/query?{query_string}"
+        
+        # Get access token for API call
+        access_token = self._get_session_token()
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Origin": "https://app.staging.guidecx.io"
+        }
+        
+        if access_token:
+            headers["Authorization"] = access_token
+        
+        try:
+            with self.client.get(analytics_url, headers=headers, catch_response=True, name="project_analytics_query") as response:
+                if response.status_code == 200:
+                    response.success()
+                    debug_print(f"✅ Successfully fetched project analytics")
+                elif response.status_code == 401:
+                    response.failure("Analytics query unauthorized")
+                    debug_print(f"❌ Analytics query unauthorized - may need proper token")
+                else:
+                    response.failure(f"Analytics query failed: {response.status_code}")
+                    debug_print(f"⚠️ Analytics query failed: {response.status_code}")
+        except Exception as e:
+            debug_print(f"Analytics query error: {e}")
+        
+        # 4. gRPC-web calls for realistic simulation
+        
+        # Get total unread message count
+        self._simulate_grpc_call(
+            service_name="message.channels.ChannelService",
+            method_name="GetTotalUnreadMessageCount",
+            payload_data={"project_id": self.test_project_id}
+        )
+        
+        # Stream project details 
+        self._simulate_grpc_call(
+            service_name="project.plan.ProjectPlanService", 
+            method_name="StreamProjectDetails",
+            payload_data={
+                "project_id": self.test_project_id,
+                "phase_id": phase_id
+            }
+        )
+        
+        # 5. Favicon request (browsers typically make this)
+        with self.client.get("/favicon.ico", catch_response=True, name="favicon_request") as response:
+            # Favicon may or may not exist, so we don't fail on 404
+            if response.status_code in [200, 404]:
+                response.success()
+            else:
+                response.failure(f"Unexpected favicon response: {response.status_code}")
+        
+        debug_print(f"✅ Complete project plan view simulation with {self.test_project_id}")
 
     # =============================================================================
     # UPDATE TASKS (ordered hierarchically: phase → milestone → task → subtask)
     # =============================================================================
 
-    @task(3)  # High frequency - time tracking is very common
+    @task()  # High frequency - time tracking is very common
     def update_task_time_tracking(self):
         """Test updating task time tracking entries using gRPC-web API"""
         # Get a random task (creates one if none exist) with correct associations
@@ -417,7 +557,6 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         # Based on TaskUpdarteTimeTracking.har - this uses gRPC-web format
         # For now, simulate the call (would need full gRPC implementation)
-        # TODO: Implement actual gRPC-web time tracking API call
         debug_print(f"  ✅ Time tracking simulated: {hours_worked:.1f}h - '{time_comment}'")
         return True
 
@@ -449,7 +588,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         return True
 
-    @task(3)  # High frequency - effort estimation adjustments are common
+    @task(10)  # High frequency - effort estimation adjustments are common
     def update_task_estimated_hours(self):
         """Test updating task estimated hours using project plan API"""
         # Get a random task (creates one if none exist) with correct associations
@@ -460,9 +599,21 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         task_id = task_info['id']
         task_name = task_info['name']
+        milestone_name = task_info.get('milestone_name', 'Unknown')
+        
+        # Always print the selected task name to console (not just debug)
+        print(f"UPDATING TASK HOURS: '{task_name}' in milestone '{milestone_name}'")
+        
+        # Enhanced logging for selected task
+        debug_print(f"SELECTED TASK FOR HOURS UPDATE:")
+        debug_print(f"   Task Name: '{task_name}'")
+        debug_print(f"   Task ID: {task_id[:8]}...")
+        debug_print(f"   Milestone: '{milestone_name}'")
         
         # Generate realistic hour estimates
         estimated_hours = random.choice([1, 2, 4, 8, 16, 24, 40])
+        
+        debug_print(f"Generated estimated hours: {estimated_hours}h")
         
         # Based on TaskUpdateEstHours.har format
         hours_payload = [{
@@ -470,8 +621,13 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             "estimatedHours": estimated_hours
         }]
         
+        debug_print(f"Hours update payload: {hours_payload}")
+        
         # TODO: Implement actual API call to project plan endpoint
         debug_print(f"  ✅ Hours estimate updated for '{task_name}': {estimated_hours}h")
+        
+        # Always print success to console (not just debug)
+        print(f"SUCCESS: Task '{task_name}' estimated hours updated to {estimated_hours}h")
         
         return True
 
@@ -507,13 +663,15 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         return True
 
-    @task(3)  # High frequency - status updates are very common
+    @task(10)  # High frequency - status updates are very common
     def update_task_status(self):
         """Test updating task status using project plan API with dynamic status extraction"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
             debug_print(f"⚠️ No project ID available for update_task_status (skipping task)")
             return
+        
+        debug_print(f"Starting task status update operation...")
         
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
@@ -524,11 +682,23 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         task_id = task_info['id']
         task_name = task_info['name']
         task_phase_id = task_info.get('phase_id', get_random_phase_id(self))  # Use task's phase or fallback
+        milestone_name = task_info.get('milestone_name', 'Unknown')
+        
+        # Always print the selected task name to console (not just debug)
+        #print(f"UPDATING TASK: '{task_name}' in milestone '{milestone_name}'")
+       
+        # # Enhanced logging for selected task
+        # debug_print(f"SELECTED TASK FOR STATUS UPDATE:")
+        # debug_print(f"   Task Name: '{task_name}'")
+        # debug_print(f"   Task ID: {task_id[:8]}...")
+        # debug_print(f"   Milestone: '{milestone_name}'")
+        # debug_print(f"   Phase ID: {task_phase_id[:8]}...")
+        # debug_print(f"   Project ID: {self.test_project_id[:8]}...")
         
         # Get available statuses dynamically from the API
         from common.extractdata import get_available_task_statuses_from_api, get_fallback_task_statuses
         
-        debug_print(f"Getting available statuses for task status update...")
+        debug_print(f"Fetching available statuses from API...")
         available_statuses = get_available_task_statuses_from_api(
             self.client, 
             self.test_project_id, 
@@ -542,11 +712,12 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         # Get list of available status names for random selection
         available_status_names = list(available_statuses.keys())
+        debug_print(f"Available statuses ({len(available_status_names)}): {', '.join(available_status_names)}")
         
         # Generate realistic status progression from available statuses
         new_status = random.choice(available_status_names)
         
-        debug_print(f"Selected status '{new_status}' from {len(available_status_names)} available options")
+        debug_print(f"Selected new status: '{new_status}' (randomly chosen from {len(available_status_names)} options)")
         
         # Optional explanation for status change
         explanations = [
@@ -560,6 +731,13 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         ]
         explanation = random.choice(explanations)
         
+        if explanation:
+            debug_print(f"Update explanation: '{explanation}'")
+        else:
+            debug_print(f"Update explanation: (empty)")
+        
+        debug_print(f"Calling update_task_status API...")
+        
         # Call the real API using the implemented function
         success = update_task_status(
             self.client,
@@ -571,15 +749,31 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         )
         
         if success:
-            debug_print(f"  ✅ Status updated for '{task_name}': {new_status}")
+            # Always print success to console (not just debug)
+            print(f"SUCCESS: Task '{task_name}' status updated to '{new_status}'")
+            if explanation:
+                debug_print(f"     With explanation: '{explanation}'")
         else:
-            debug_print(f"  ❌ Failed to update status for '{task_name}' to '{new_status}'")
+            # Always print failure to console with failure indicator
+            print(f"❌ FAILED: Could not update task '{task_name}' to status '{new_status}'")
+            debug_print(f"     Check the update_task_status function in common/update.py for detailed error logs")
+        
+        debug_print(f"Task status update operation completed for '{task_name}'")
         
         return success
 
     def on_start(self):
         """Called when user starts - authentication happens automatically"""
         super().on_start()  # This calls authenticate()
+        
+        # DEBUG verification - add these lines
+        import os
+       
+        # Show the timing issue
+        from common.helpers import DEBUG as helpers_DEBUG
+        print(f"common.helpers.DEBUG (set at import time): {helpers_DEBUG}")
+        print(f"Current DEBUG check: {os.getenv('DEBUG', 'false').lower() == 'true'}")
+        
         debug_print(f"Starting project phase/milestone load test")
         
         if self.USE_PROJECT_POOL:

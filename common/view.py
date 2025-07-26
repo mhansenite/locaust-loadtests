@@ -228,7 +228,7 @@ def update_task_status_api(client, project_id, phase_id, task_id, status_id, exp
         debug_print(f"🔍 Request URL: {update_url}")
         debug_print(f"🔍 Request Parameters: {params}")
         
-        # Payload format from HAR file
+        # Payload format from HAR file - EXACT match to working request
         payload_data = [{
             "unitId": {"uuid": task_id},
             "statusId": {"uuid": status_id},
@@ -239,11 +239,12 @@ def update_task_status_api(client, project_id, phase_id, task_id, status_id, exp
         debug_print(f"🔍 Request Payload Data: {payload_data}")
         debug_print(f"🔍 Request Payload JSON: {status_payload}")
         
-        # Headers based on TaskUpdateStatus.har
+        # Headers based on TaskUpdateStatus.har - CRITICAL: Next-Action is required for Next.js Server Actions
         headers = {
             'Content-Type': 'text/plain;charset=UTF-8',
             'Accept': 'text/x-component',
-            # 'Next-Action': '0ca3f6b0537f60187ded01a52a8a7942de8ab312',  # Removed - this was hardcoded from HAR
+            'Next-Action': '0ca3f6b0537f60187ded01a52a8a7942de8ab312',  # From successful HAR - this is crucial!
+            'Origin': 'https://app.staging.guidecx.io',
         }
         
         debug_print(f"🔍 Request Headers: {headers}")
@@ -275,13 +276,68 @@ def update_task_status_api(client, project_id, phase_id, task_id, status_id, exp
             else:
                 debug_print(f"🔍 Response Text: EMPTY")
             
-            # Log success/failure based on status code
-            success = response.status_code == 200
-            if success:
-                debug_print(f"✅ HTTP request successful (200)")
+            # Parse the response to determine actual success based on HAR analysis
+            success = False
+            if response.status_code == 200:
+                try:
+                    # From HAR: successful response contains: {"response":{"status":{...},"info":{"status":0,"message":""}},"error":null}
+                    # The response is in a Next.js Server Action format: "1:{JSON_DATA}"
+                    if response.text and '"response"' in response.text and '"info"' in response.text:
+                        # Extract JSON from Next.js Server Action format
+                        import re
+                        json_match = re.search(r'\d+:(\{.*\})', response.text)
+                        if json_match:
+                            json_str = json_match.group(1)
+                            parsed_data = json.loads(json_str)
+                            debug_print(f"🔍 Parsed response JSON: {json.dumps(parsed_data, indent=2)}")
+                            
+                            # Check for error in response
+                            if parsed_data.get('error'):
+                                debug_print(f"❌ API returned error: {parsed_data['error']}")
+                                response.failure(f"API error: {parsed_data['error']}")
+                                success = False
+                            else:
+                                # Check the info.status field (0 = success based on HAR)
+                                info = parsed_data.get('response', {}).get('info', {})
+                                info_status = info.get('status')
+                                info_message = info.get('message', '')
+                                
+                                debug_print(f"🔍 Response info.status: {info_status}")
+                                debug_print(f"🔍 Response info.message: '{info_message}'")
+                                
+                                if info_status == 0:  # 0 = success based on HAR analysis
+                                    debug_print(f"✅ Task status update successful!")
+                                    response.success()
+                                    success = True
+                                else:
+                                    debug_print(f"❌ Task status update failed - info.status: {info_status}")
+                                    response.failure(f"Status update failed: info.status = {info_status}")
+                                    success = False
+                        else:
+                            debug_print(f"⚠️ Could not parse Next.js Server Action response format")
+                            debug_print(f"🔍 Raw response: {response.text}")
+                            response.failure("Could not parse response format")
+                            success = False
+                    else:
+                        debug_print(f"⚠️ Response missing expected fields ('response' and 'info')")
+                        debug_print(f"🔍 Raw response: {response.text}")
+                        response.failure("Response missing expected fields")
+                        success = False
+                        
+                except json.JSONDecodeError as je:
+                    debug_print(f"❌ JSON decode error: {je}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"JSON decode error: {je}")
+                    success = False
+                except Exception as e:
+                    debug_print(f"❌ Error parsing response: {e}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"Response parsing error: {e}")
+                    success = False
             else:
-                debug_print(f"❌ HTTP request failed ({response.status_code})")
-                response.failure(f"Status update failed: {response.status_code}")
+                debug_print(f"❌ HTTP request failed with status {response.status_code}")
+                response.failure(f"HTTP {response.status_code}")
+                success = False
             
             debug_print(f"🔍 UPDATE_TASK_STATUS_API DEBUG END")
             return (success, response.text, response.status_code)
