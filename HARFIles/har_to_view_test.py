@@ -672,7 +672,7 @@ class HARWorkflowGenerator:
         return '\n'.join(method_body)
     
     def _generate_request_code(self, req: Dict[str, Any], request_name: str, is_first_request: bool = False) -> List[str]:
-        """Generate code for a single HTTP request"""
+        """Generate code for a single HTTP request using common.auth.AuthenticatedUser methods"""
         method = req['method'].lower()
         url = req['url']
         headers = req.get('headers', {})
@@ -683,7 +683,7 @@ class HARWorkflowGenerator:
         subdomain = 'app'  # default subdomain for guidecx domains
         path = url
         
-        # Determine if this is a guidecx domain that should use make_api_request
+        # Determine if this is a guidecx domain
         host_header = headers.get('Host', '')
         if host_header and 'guidecx' in host_header.lower():
             is_guidecx_domain = True
@@ -724,7 +724,7 @@ class HARWorkflowGenerator:
         # Generate headers dict and check if dynamic extraction is needed
         headers_code, needs_dynamic_action = self._generate_headers_dict(headers, method)
         
-        # For guidecx domains, remove Host header since make_api_request will add it
+        # For guidecx domains, remove Host header since we'll build the full URL
         if is_guidecx_domain and headers_code and '"Host"' in headers_code:
             lines = headers_code.split('\n')
             filtered_lines = [line for line in lines if '"Host"' not in line]
@@ -734,27 +734,26 @@ class HARWorkflowGenerator:
         # Generate request code
         code = []
         
-        # If this request needs dynamic Next-Action, first extract it
-        if needs_dynamic_action and method == 'post':
-            # Generate code to extract Next-Action ID from current page
-            # Use the workflow's primary subdomain for Next-Action extraction
-            primary_subdomain = self._determine_primary_subdomain()
-            code.append('        # Extract dynamic Next-Action ID from current page')
-            code.append('        next_action_id = None')
-            code.append(f'        page_url = self.get_api_url("{primary_subdomain}", "/v2/projects")')
-            code.append('        with self.client.get(page_url, catch_response=True) as page_resp:')
-            code.append('            if page_resp.status_code == 200:')
-            code.append('                next_action_id = self.extract_next_action_id(page_resp.text)')
-            code.append('                if DEBUG and next_action_id:')
-            code.append('                    print(f"✅ Extracted Next-Action ID: {next_action_id}")')
-            code.append('            else:')
-            code.append('                if DEBUG:')
-            code.append('                    print("⚠️ Failed to get current page for Next-Action extraction")')
-            code.append('')
-        
         if is_guidecx_domain:
-            # GuideX domain - use make_api_request with dynamic subdomain
+            # GuideX domain - use standard Locust client with proper headers
             path = self._make_project_ids_configurable(path)
+            
+            # Check if we need Next-Action extraction for this request
+            if needs_dynamic_action:
+                # Add Next-Action extraction logic
+                code.append('        # Extract Next-Action ID for this request')
+                code.append('        next_action_id = None')
+                code.append('        try:')
+                code.append('            # Get the current page to extract Next-Action ID')
+                code.append('            with self.client.get("/", catch_response=True, name="extract_next_action") as page_resp:')
+                code.append('                if page_resp.status_code == 200:')
+                code.append('                    next_action_id = self.extract_next_action_id(page_resp.text)')
+                code.append('                    if DEBUG and next_action_id:')
+                code.append('                        print(f"✅ Extracted Next-Action ID: {next_action_id}")')
+                code.append('        except Exception as e:')
+                code.append('            if DEBUG:')
+                code.append('                print(f"⚠️ Failed to extract Next-Action ID: {e}")')
+                code.append('')
             
             # Determine if we need to use CSV template variables in the path
             has_csv_vars = '{' in path and '}' in path
@@ -762,23 +761,36 @@ class HARWorkflowGenerator:
                 path_var = f'"{path}".format(**self.test_data)'
             else:
                 path_var = f'"{path}"'
+            
+            # Build the full URL or use relative path
+            if subdomain != 'app':
+                # For non-app subdomains, use full URL
+                url_code = f'f"https://{subdomain}.{{self.api_domain}}{{{path_var}}}"'
+            else:
+                # For app subdomain, can use relative path
+                url_code = path_var
                 
-            # Use the make_api_request method for guidecx domains
-            code.append(f'        with self.make_api_request(')
-            code.append(f'            "{method.upper()}",')
-            code.append(f'            "{subdomain}",')
-            code.append(f'            {path_var},')
+            # Merge authentication headers with request headers
+            code.append('        # Get authenticated headers')
+            code.append('        auth_headers = self.get_auth_headers()')
             
             if headers_code and headers_code.strip() not in ['{}', '{\n            }']:
-                code.append(f'            headers={headers_code},')
-                
+                code.append(f'        request_headers = {headers_code}')
+                code.append('        auth_headers.update(request_headers)')
+            
+            # Use standard Locust client methods
+            code.append(f'        with self.client.{method}(')
+            code.append(f'            {url_code},')
+            code.append('            headers=auth_headers,')
+            
             if data:
                 if isinstance(data, str):
                     code.append(f'            data={repr(data)},')
                 else:
                     code.append(f'            data={data},')
                     
-            code.append('            catch_response=True')
+            code.append('            catch_response=True,')
+            code.append(f'            name="{request_name}"')
             code.append('        ) as resp:')
         else:
             # External domain detected - this should not happen as all external domains are filtered out
@@ -1090,21 +1102,23 @@ class HARWorkflowGenerator:
         return headers_code, has_next_action
     
     def _generate_workflow_class(self) -> str:
-        """Generate the complete workflow class using shared authentication"""
+        """Generate the complete workflow class using common.auth"""
         
         template = '''#!/usr/bin/env python3
 """
 {workflow_name} User - Uses Shared Authentication
 Can be run directly with: locust -f {relative_path}
 
-Uses shared authentication from auth.base_user module.
+Uses shared authentication from common.auth module.
 Auto-generated from HAR file: {input_file}
 """
 
 import os
 import sys
+import csv
+import random
 from locust import task
-from auth.base_user import AuthenticatedUser
+from common.auth import AuthenticatedUser
 
 # Add project root to path for imports when run directly
 if __name__ == "__main__":
@@ -1120,6 +1134,8 @@ if __name__ == "__main__":
 DOMAIN_SUFFIX = os.getenv("DOMAIN_SUFFIX", "staging.guidecx.io")
 DEBUG = os.getenv("DEBUG", "false").lower() in ["true", "1", "yes"]
 
+{csv_config}
+
 # =============================================================================
 # WORKFLOW CLASS - {class_name}
 # =============================================================================
@@ -1129,7 +1145,7 @@ class {class_name}(AuthenticatedUser):
     User focused on {workflow_name_lower} activities.
     Standalone version for direct Locust execution.
     
-    Uses CSV-driven host configuration from base authentication class.
+    Uses environment variable configuration from base authentication class.
     """
     
     # Relative weight when multiple user classes exist
@@ -1141,15 +1157,56 @@ class {class_name}(AuthenticatedUser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Extract domain from CSV data (already set by base class)
+        # Extract domain from environment or use default
+        self.api_domain = DOMAIN_SUFFIX
+        
+        # Initialize test data for CSV template variables
         if hasattr(self, 'test_data') and 'domain' in self.test_data:
             self.api_domain = self.test_data['domain']
         else:
-            # Fallback to DOMAIN_SUFFIX
-            self.api_domain = DOMAIN_SUFFIX
+            # For standalone execution, select random test data row
+            if TEST_DATA:
+                self.test_data = random.choice(TEST_DATA)
+                self.api_domain = self.test_data.get('domain', DOMAIN_SUFFIX)
+            else:
+                # Fallback to default test data structure
+                self.test_data = {{
+                    'domain': DOMAIN_SUFFIX,
+                    'login_email': os.getenv('LOGIN_EMAIL', 'test@example.com'),
+                    'login_password': os.getenv('LOGIN_PASSWORD', 'password'),
+                    'projectID': 'test-project-id',
+                    'phaseID': 'test-phase-id',
+                    'milestoneID': 'test-milestone-id',
+                    'taskID': 'test-task-id',
+                    'messageID': 'test-message-id',
+                    'channelID': 'test-channel-id'
+                }}
             
         if DEBUG:
             print(f"{{self.__class__.__name__}} using domain: {{self.api_domain}}")
+
+    def extract_next_action_id(self, html_content):
+        """
+        Extract Next-Action ID from HTML content for Next.js server actions.
+        This method should match the implementation in common.auth.
+        """
+        import re
+        
+        # Look for Next-Action ID in script tags
+        patterns = [
+            r'"__next_action_id__"\s*:\s*"([^"]+)"',
+            r'actionId\s*:\s*"([^"]+)"',
+            r'data-action-id="([^"]+)"',
+            r'action-id:\s*([a-f0-9]+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, html_content)
+            if match:
+                return match.group(1)
+        
+        # If no pattern matches, return None (will be handled gracefully)
+        return None
 
 {task_methods}
 
@@ -1159,29 +1216,39 @@ class {class_name}(AuthenticatedUser):
 
 if __name__ == "__main__":
     print(f"""
-{{workflow_name}} Workflow
+{workflow_name} Workflow
 
 Usage:
-   locust -f {{relative_path}}
+   locust -f {relative_path}
 
 Configuration:
-   export TEST_DATA_CSV=config/test_data_staging.csv
    export DOMAIN_SUFFIX=staging.guidecx.io
+   export LOGIN_EMAIL=your-email@example.com
+   export LOGIN_PASSWORD=your-password
+   export LOCUST_HOST=https://app.staging.guidecx.io
    export DEBUG=true
 
 Example Commands:
    # Basic test
-   locust -f {{relative_path}} --headless --users=5 --spawn-rate=1 --run-time=30s
+   locust -f {relative_path} --headless --users=5 --spawn-rate=1 --run-time=30s
 
-   # With specific CSV data
-   export TEST_DATA_CSV=config/test_data_production.csv
-   locust -f {{relative_path}} --headless --users=3 --spawn-rate=1 --run-time=15s
+   # With specific environment
+   export DOMAIN_SUFFIX=production.guidecx.com
+   export LOGIN_EMAIL=prod_user@company.com
+   export LOGIN_PASSWORD=prod_password
+   export LOCUST_HOST=https://app.production.guidecx.com
+   locust -f {relative_path} --headless --users=3 --spawn-rate=1 --run-time=15s
 
    # Web UI mode
-   locust -f {{relative_path}}
+   locust -f {relative_path}
     """)
 '''
 
+        # Generate CSV configuration if we detected CSV parameters
+        csv_config = ""
+        if hasattr(self, '_csv_parameters') and self._csv_parameters:
+            csv_config = self._generate_project_id_config()
+        
         # Generate task methods
         task_methods = []
         weights = {'page_load': 3, 'filters': 2, 'data_refresh': 4, 'api_calls': 2}
@@ -1218,7 +1285,8 @@ Example Commands:
             primary_subdomain=self._determine_primary_subdomain(),
             task_methods='\n\n'.join(task_methods),
             relative_path=relative_path,
-            input_file=self.input_file_path
+            input_file=self.input_file_path,
+            csv_config=csv_config
         )
     
     def _determine_primary_subdomain(self) -> str:
@@ -1452,45 +1520,52 @@ def main():
             if generator.is_har_file and hasattr(generator, 'temp_python_file'):
                 python_file_info = f"Python conversion: {generator.temp_python_file}\n"
             
-            # Generate project ID configuration message if needed
-            project_config_msg = ""
-            if hasattr(generator, '_csv_parameters') and generator._csv_parameters:
-                params_list = sorted(list(generator._csv_parameters))
-                
-                project_config_msg = f"""
-⚙️  SHARED AUTHENTICATION WITH CSV CONFIGURATION:
-This workflow uses the shared auth.base_user module with CSV-driven test data.
+            # Show configuration message for environment variables
+            config_msg = f"""
+⚙️  SHARED AUTHENTICATION WITH ENVIRONMENT VARIABLES:
+This workflow uses common.auth module with environment variable configuration.
 
-📋 Required CSV columns: domain,login_email,login_password,{','.join(params_list)}
+🔧 Required Environment Variables:
+   export DOMAIN_SUFFIX=staging.guidecx.io
+   export LOGIN_EMAIL=your-email@example.com  
+   export LOGIN_PASSWORD=your-password
+   export LOCUST_HOST=https://app.staging.guidecx.io
+   export DEBUG=true
 
-📁 Create separate environment files (managed by auth.base_user):
+🟡 STAGING Environment:
+   export DOMAIN_SUFFIX=staging.guidecx.io
+   export LOGIN_EMAIL=stage_user@test.com
+   export LOGIN_PASSWORD=stage_password
+   export LOCUST_HOST=https://app.staging.guidecx.io
 
-🟡 STAGING: config/test_data_staging.csv
-   domain,login_email,login_password,{','.join(params_list)}
-   staging.guidecx.io,stage_user1@test.com,stage_pass,uuid1,uuid2,uuid3
-   staging.guidecx.io,stage_user2@test.com,stage_pass,uuid4,uuid5,uuid6
-
-🔴 PRODUCTION: config/test_data_production.csv  
-   domain,login_email,login_password,{','.join(params_list)}
-   production.guidecx.com,prod_user1@company.com,prod_pass,uuid7,uuid8,uuid9
-   production.guidecx.com,prod_user2@company.com,prod_pass,uuid10,uuid11,uuid12
+🔴 PRODUCTION Environment:
+   export DOMAIN_SUFFIX=production.guidecx.com
+   export LOGIN_EMAIL=prod_user@company.com
+   export LOGIN_PASSWORD=prod_password
+   export LOCUST_HOST=https://app.production.guidecx.com
 
 🔧 Usage Examples:
    # Test staging environment:
-   export TEST_DATA_CSV=config/test_data_staging.csv
+   export DOMAIN_SUFFIX=staging.guidecx.io
+   export LOGIN_EMAIL=stage_user@test.com
+   export LOGIN_PASSWORD=stage_password
+   export LOCUST_HOST=https://app.staging.guidecx.io
    locust -f {output_path} --users=10 --spawn-rate=2
    
    # Test production environment:
-   export TEST_DATA_CSV=config/test_data_production.csv  
+   export DOMAIN_SUFFIX=production.guidecx.com
+   export LOGIN_EMAIL=prod_user@company.com
+   export LOGIN_PASSWORD=prod_password
+   export LOCUST_HOST=https://app.production.guidecx.com
    locust -f {output_path} --users=5 --spawn-rate=1
 
 ✅ Benefits:
-   • Centralized authentication: Changes in one place (auth/base_user.py)
+   • Centralized authentication: Changes in one place (common/auth.py)
    • No regeneration needed: Auth updates apply to all workflows
-   • Environment-aware: Separate credentials per environment
-   • CSV-driven: Flexible test data management
+   • Environment-aware: Different credentials per environment
+   • Simple configuration: Just set environment variables
 
-📝 Authentication changes: Edit auth/base_user.py (affects all workflows)
+📝 Authentication changes: Edit common/auth.py (affects all workflows)
 """
 
             # Show directory structure with subdirectory
@@ -1507,14 +1582,18 @@ Next steps:
    # For {subdirectory or 'general'} workflows:
    mv {output_path} workflows/{subdirectory + '/' if subdirectory else ''}{workflow_name}.py
 
-2. Create environment-specific CSV files:
-   config/test_data_staging.csv
-   config/test_data_production.csv
+2. Set environment variables for authentication:
+   export DOMAIN_SUFFIX=staging.guidecx.io
+   export LOGIN_EMAIL=your-email@example.com
+   export LOGIN_PASSWORD=your-password
+   export LOCUST_HOST=https://app.staging.guidecx.io
 
 3. Test the workflow:
    locust -f workflows/{subdirectory + '/' if subdirectory else ''}{workflow_name}.py --users=1 --spawn-rate=2 --run-time=10s
 
-Authentication changes: Edit auth/base_user.py (affects ALL workflows automatically!)
+{config_msg}
+
+Authentication changes: Edit common/auth.py (affects ALL workflows automatically!)
 """)
         else:
             print("Failed to generate workflow")

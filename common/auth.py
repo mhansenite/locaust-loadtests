@@ -9,6 +9,7 @@ import re
 import uuid
 from locust import HttpUser, between
 from dotenv import load_dotenv
+from .helpers import debug_print
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,7 +46,7 @@ class AuthenticatedUser(HttpUser):
         self.is_authenticated = False
         self.session_data = None
         
-        print(f"Initializing user: {self.login_email} @ {self.host}")
+        debug_print(f"Initializing user: {self.login_email} @ {self.host}")
     
     def on_start(self):
         """Authenticate user when starting"""
@@ -56,7 +57,7 @@ class AuthenticatedUser(HttpUser):
         if self.is_authenticated:
             return True
             
-        print(f"Authenticating user: {self.login_email}")
+        debug_print(f"Authenticating user: {self.login_email}")
         
         try:
             # Extract domain from email for URL construction
@@ -71,13 +72,13 @@ class AuthenticatedUser(HttpUser):
             login_response = self.client.get(login_url, name="/auth/login")
             
             if login_response.status_code != 200:
-                print(f"❌ Failed to load login page: {login_response.status_code}")
+                debug_print(f"Failed to load login page: {login_response.status_code}")
                 return False
             
             # Step 2: Extract Next-Action ID
             next_action_id = self._extract_next_action_id(login_response.text)
             if not next_action_id:
-                print("❌ Could not find Next-Action ID")
+                debug_print("Could not find Next-Action ID")
                 return False
             
             # Step 3: Submit email form
@@ -111,7 +112,7 @@ class AuthenticatedUser(HttpUser):
             # Step 5: Verify authentication success
             if self._is_authentication_successful(auth_response):
                 self.is_authenticated = True
-                print("Authentication successful")
+                debug_print("Authentication successful")
                 self._complete_authentication_flow()
                 self._get_session_data()
                 return True
@@ -119,17 +120,17 @@ class AuthenticatedUser(HttpUser):
                 # Check for session cookies as fallback
                 session_cookies = [name for name in self.client.cookies.keys() if 'session' in name.lower()]
                 if session_cookies:
-                    print("Authentication successful (session cookies found)")
+                    debug_print("Authentication successful (session cookies found)")
                     self.is_authenticated = True
                     self._complete_authentication_flow()
                     self._get_session_data()
                     return True
                 
-                print(f"❌ Authentication failed - Status: {auth_response.status_code}")
+                debug_print(f"Authentication failed - Status: {auth_response.status_code}")
                 return False
                 
         except Exception as e:
-            print(f"❌ Authentication error: {e}")
+            debug_print(f"Authentication error: {e}")
             return False
     
     def _extract_next_action_id(self, html_content):
@@ -177,7 +178,7 @@ class AuthenticatedUser(HttpUser):
         """Handle the second step of 2-factor authentication"""
         password_action_id = self._extract_next_action_id(response.text)
         if not password_action_id:
-            print("❌ Could not find Next-Action ID on password form")
+            debug_print("Could not find Next-Action ID on password form")
             return None
         
         # Submit password form
@@ -220,7 +221,7 @@ class AuthenticatedUser(HttpUser):
         try:
             self.client.get("/projects", name="complete_auth_flow")
         except Exception as e:
-            print(f"⚠️ Error completing authentication flow: {e}")
+            debug_print(f"Error completing authentication flow: {e}")
     
     def _get_session_data(self):
         """Retrieve session data from the session endpoint"""
@@ -235,7 +236,7 @@ class AuthenticatedUser(HttpUser):
                     if isinstance(session_data, dict) and session_data:
                         self.session_data = session_data
                         if 'accessToken' in session_data:
-                            print(f"Access token found: {session_data['accessToken'][:50]}...")
+                            debug_print(f"Access token found: {session_data['accessToken'][:50]}...")
                     else:
                         self.session_data = {}
                         
@@ -245,7 +246,7 @@ class AuthenticatedUser(HttpUser):
                 self.session_data = {}
                 
         except Exception as e:
-            print(f"⚠️ Error getting session data: {e}")
+            debug_print(f"Error getting session data: {e}")
             self.session_data = {}
     
     def get_auth_headers(self):
@@ -283,17 +284,17 @@ if __name__ == "__main__":
         user = AuthenticatedUser(env)
         
         if user.authenticate():
-            print("Authentication test: PASSED")
+            debug_print("Authentication test: PASSED")
             
             response = user.make_authenticated_request('GET', '/projects')
             if response.status_code == 200:
-                print("Authenticated request test: PASSED")
+                debug_print("Authenticated request test: PASSED")
             else:
-                print(f"⚠️ Authenticated request test: Status {response.status_code}")
+                debug_print(f"Authenticated request test: Status {response.status_code}")
         else:
-            print("❌ Authentication test: FAILED")
+            debug_print("Authentication test: FAILED")
             
     except ImportError:
-        print("Install locust to run the test: pip install locust")
+        debug_print("Install locust to run the test: pip install locust")
     except Exception as e:
-        print(f"Test failed: {e}") 
+        debug_print(f"Test failed: {e}") 

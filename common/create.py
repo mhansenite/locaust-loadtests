@@ -17,6 +17,7 @@ from .extractdata import (
     extract_task_id_from_response,
     extract_subtask_id_from_response
 )
+from .helpers import debug_print
 
 
 def create_project(client, project_name_base="LoadTestProject"):
@@ -54,7 +55,7 @@ def create_project(client, project_name_base="LoadTestProject"):
         # Project creation URL (from CreateProject.har)
         create_url = "/v2/projects"
         
-        print(f"Creating project using quick create API...")
+        debug_print(f"Creating project using quick create API...")
         
         with client.post(
             create_url,
@@ -63,17 +64,17 @@ def create_project(client, project_name_base="LoadTestProject"):
             catch_response=True,
             name="create_project"
         ) as response:
-            print(f"Project creation response status: {response.status_code}")
-            print(f"Project creation response: {response.text[:500]}...")
+            debug_print(f"Project creation response status: {response.status_code}")
+            debug_print(f"Project creation response: {response.text[:500]}...")
             
             if response.status_code == 200:
                 response.success()
-                print(f"Successfully called project creation API")
+                debug_print(f"Successfully called project creation API")
                 
                 # Try to extract project ID from response
                 project_id = extract_project_id_from_response(response.text)
                 if project_id:
-                    print(f"Created project with ID: {project_id}")
+                    debug_print(f"Created project with ID: {project_id}")
                     
                     # Now try to rename the project to our desired name
                     renamed_successfully = rename_project(client, project_id, project_name)
@@ -84,24 +85,24 @@ def create_project(client, project_name_base="LoadTestProject"):
                         'name': final_name
                     }
                 else:
-                    print(f"⚠️ Could not extract project ID from response")
+                    debug_print(f"⚠️ Could not extract project ID from response")
                     return None
                     
             elif response.status_code == 401:
                 response.failure("Authentication failed for project creation")
-                print(f"❌ Authentication failed for project creation")
+                debug_print(f"❌ Authentication failed for project creation")
                 return None
             elif response.status_code == 403:
                 response.failure("Access denied for project creation")
-                print(f"❌ Access denied for project creation") 
+                debug_print(f"❌ Access denied for project creation") 
                 return None
             else:
                 response.failure(f"Project creation failed: {response.status_code}")
-                print(f"⚠️ Project creation failed: {response.status_code}")
+                debug_print(f"⚠️ Project creation failed: {response.status_code}")
                 return None
                 
     except Exception as e:
-        print(f"Exception in create_project: {e}")
+        debug_print(f"Exception in create_project: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -149,7 +150,7 @@ def rename_project(client, project_id, new_name):
             'Next-Action': '75aaedb01b5c98f20a569b8a7a97ee1fa04c3acf'  # From rename HAR
         }
         
-        print(f"Attempting to rename project to: '{new_name}' using correct API")
+        debug_print(f"Attempting to rename project to: '{new_name}' using correct API")
         
         with client.post(
             rename_url,
@@ -159,23 +160,23 @@ def rename_project(client, project_id, new_name):
             catch_response=True,
             name="rename_project"
         ) as response:
-            print(f"Rename response status: {response.status_code}")
-            print(f"Rename response: {response.text[:200]}...")
+            debug_print(f"Rename response status: {response.status_code}")
+            debug_print(f"Rename response: {response.text[:200]}...")
             
             if response.status_code == 200:
                 # Check if the response indicates success
                 if 'Project name updated' in response.text or '"name":"' in response.text:
-                    print(f"Successfully renamed project to: '{new_name}'")
+                    debug_print(f"Successfully renamed project to: '{new_name}'")
                     return True
                 else:
-                    print(f"⚠️ Rename API called but response unclear: {response.text[:100]}...")
+                    debug_print(f"⚠️ Rename API called but response unclear: {response.text[:100]}...")
                     return False
             else:
-                print(f"⚠️ Project rename failed: {response.status_code}")
+                debug_print(f"⚠️ Project rename failed: {response.status_code}")
                 return False
                 
     except Exception as e:
-        print(f"⚠️ Project rename error: {e}")
+        debug_print(f"⚠️ Project rename error: {e}")
         return False
 
 
@@ -207,7 +208,7 @@ def delete_project(client, project_id):
         # Project deletion URL (from DeleteProject.har)
         delete_url = "/v2/projects"
         
-        print(f"Deleting project: {project_id}")
+        debug_print(f"Deleting project: {project_id}")
         
         with client.post(
             delete_url,
@@ -216,20 +217,20 @@ def delete_project(client, project_id):
             catch_response=True,
             name="delete_project"
         ) as response:
-            print(f"Project deletion response status: {response.status_code}")
-            print(f"Project deletion response: {response.text[:200]}...")
+            debug_print(f"Project deletion response status: {response.status_code}")
+            debug_print(f"Project deletion response: {response.text[:200]}...")
             
             if response.status_code == 200:
                 response.success()
-                print(f"Successfully deleted project: {project_id}")
+                debug_print(f"Successfully deleted project: {project_id}")
                 return True
             else:
                 response.failure(f"Project deletion failed: {response.status_code}")
-                print(f"⚠️ Project deletion failed: {response.status_code}")
+                debug_print(f"⚠️ Project deletion failed: {response.status_code}")
                 return False
                 
     except Exception as e:
-        print(f"Exception in delete_project: {e}")
+        debug_print(f"Exception in delete_project: {e}")
         return False
 
 
@@ -280,8 +281,8 @@ def create_phase(client, project_id, phase_name_base="LoadTestPhase", context_ph
             'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
         }
         
-        print(f"Creating phase directly: '{phase_name}' in project: {project_id}")
-        print(f"Using direct phase creation API with existing phase context: {current_phase_id}")
+        debug_print(f"Creating phase directly: '{phase_name}' in project: {project_id}")
+        debug_print(f"Using direct phase creation API with existing phase context: {current_phase_id}")
         
         with client.post(
             create_url,
@@ -291,24 +292,24 @@ def create_phase(client, project_id, phase_name_base="LoadTestPhase", context_ph
             catch_response=True,
             name="create_phase"
         ) as response:
-            print(f"Phase creation response status: {response.status_code}")
-            print(f"Phase creation response body: {response.text[:1000]}...")
+            debug_print(f"Phase creation response status: {response.status_code}")
+            debug_print(f"Phase creation response body: {response.text[:1000]}...")
             
             if response.status_code == 200:
                 response.success()
-                print(f"Successfully created phase: '{phase_name}'")
+                debug_print(f"Successfully created phase: '{phase_name}'")
                 
                 # Try to extract phase ID from response
                 phase_id = extract_phase_id_from_response(response.text)
                 if phase_id:
-                    print(f"Extracted phase ID: {phase_id}")
+                    debug_print(f"Extracted phase ID: {phase_id}")
                     return {
                         'id': phase_id,
                         'name': phase_name,
                         'project_id': project_id
                     }
                 else:
-                    print(f"⚠️ Could not extract phase ID from response")
+                    debug_print(f"⚠️ Could not extract phase ID from response")
                     return {
                         'id': 'unknown',
                         'name': phase_name,
@@ -316,11 +317,11 @@ def create_phase(client, project_id, phase_name_base="LoadTestPhase", context_ph
                     }
             else:
                 response.failure(f"Phase creation failed with status {response.status_code}: {response.text[:200]}")
-                print(f"❌ Phase creation failed: {response.status_code} - {response.text[:200]}")
+                debug_print(f"❌ Phase creation failed: {response.status_code} - {response.text[:200]}")
                 return None
                 
     except Exception as e:
-        print(f"Exception in create_phase: {e}")
+        debug_print(f"Exception in create_phase: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -369,10 +370,10 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
             'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
         }
         
-        print(f"Creating milestone '{milestone_name}' directly in phase {phase_id}")
-        print(f"URL: {milestone_url} with params: {params}")
-        print(f"Payload: {milestone_payload}")
-        print(f"Headers Next-Action: {headers.get('Next-Action', 'NOT_SET')}")
+        debug_print(f"Creating milestone '{milestone_name}' directly in phase {phase_id}")
+        debug_print(f"URL: {milestone_url} with params: {params}")
+        debug_print(f"Payload: {milestone_payload}")
+        debug_print(f"Headers Next-Action: {headers.get('Next-Action', 'NOT_SET')}")
         
         with client.post(
             milestone_url,
@@ -382,9 +383,9 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
             catch_response=True,
             name="create_milestone"
         ) as response:
-            print(f"Response status: {response.status_code}")
-            print(f"Response headers: {dict(response.headers)}")
-            print(f"Full response text: {response.text}")
+            debug_print(f"Response status: {response.status_code}")
+            debug_print(f"Response headers: {dict(response.headers)}")
+            debug_print(f"Full response text: {response.text}")
             
             if response.status_code == 200:
                 response.success()
@@ -393,73 +394,75 @@ def create_milestone(client, project_id, phase_id, milestone_name_base="LoadTest
                 try:
                     # The response appears to be in a special format with multiple JSON objects
                     response_lines = response.text.strip().split('\n')
-                    print(f"Response has {len(response_lines)} lines")
+                    debug_print(f"Response has {len(response_lines)} lines")
                     
                     for i, line in enumerate(response_lines):
-                        print(f"Line {i}: {line}")
+                        debug_print(f"Line {i}: {line}")
                         if line.startswith('1:') and 'error' in line:
                             # Parse the JSON part after "1:"
                             json_part = line[2:]  # Remove "1:" prefix
                             try:
                                 error_data = json.loads(json_part)
-                                print(f"Parsed error data: {error_data}")
+                                debug_print(f"Parsed error data: {error_data}")
                                 
                                 if error_data.get('error'):
                                     error_msg = error_data['error'].get('message', 'Unknown error')
                                     error_metadata = error_data['error'].get('metadata', {})
-                                    print(f"❌ MILESTONE ERROR: {error_msg}")
-                                    print(f"❌ MILESTONE ERROR METADATA: {error_metadata}")
+                                    debug_print(f"❌ MILESTONE ERROR: {error_msg}")
+                                    debug_print(f"❌ MILESTONE ERROR METADATA: {error_metadata}")
                                     
                                     # Log specific debugging information
-                                    print(f"🔍 DEBUG INFO:")
-                                    print(f"  - Project ID: {project_id}")
-                                    print(f"  - Phase ID: {phase_id}")
-                                    print(f"  - Milestone name: {milestone_name}")
-                                    print(f"  - Request URL: {milestone_url}?{params}")
+                                    debug_print(f"🔍 DEBUG INFO:")
+                                    debug_print(f"  - Project ID: {project_id}")
+                                    debug_print(f"  - Phase ID: {phase_id}")
+                                    debug_print(f"  - Milestone name: {milestone_name}")
+                                    debug_print(f"  - Request URL: {milestone_url}?{params}")
                                     
                                     return None
                                 elif error_data.get('response') is None:
-                                    print(f"❌ MILESTONE ERROR: Response is null (no specific error given)")
+                                    debug_print(f"❌ MILESTONE ERROR: Response is null (no specific error given)")
                                     return None
                                     
                             except json.JSONDecodeError as je:
-                                print(f"Could not parse JSON from line: {je}")
+                                debug_print(f"Could not parse JSON from line: {je}")
                     
                     # Check for successful milestone creation in response
                     if 'milestone' in response.text or ('response' in response.text and 'error' not in response.text):
                         # Try to extract milestone ID from response
                         milestone_id = extract_milestone_id_from_response(response.text)
                         if milestone_id:
-                            print(f"✅ Created milestone: '{milestone_name}' with ID: {milestone_id}")
+                            debug_print(f"✅ Created milestone: '{milestone_name}' with ID: {milestone_id}")
                             return {
                                 'id': milestone_id,
                                 'name': milestone_name,
-                                'phase_id': phase_id
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                         else:
-                            print(f"⚠️ Milestone created but couldn't extract ID from response")
+                            debug_print(f"⚠️ Milestone created but couldn't extract ID from response")
                             return {
                                 'id': 'unknown',
                                 'name': milestone_name,
-                                'phase_id': phase_id
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                     else:
-                        print(f"⚠️ Unexpected milestone creation response format")
+                        debug_print(f"⚠️ Unexpected milestone creation response format")
                         return None
                         
                 except Exception as parse_error:
-                    print(f"❌ Error parsing milestone response: {parse_error}")
-                    print(f"🔍 Raw response for debugging: {response.text}")
+                    debug_print(f"❌ Error parsing milestone response: {parse_error}")
+                    debug_print(f"🔍 Raw response for debugging: {response.text}")
                     return None
                     
             else:
                 response.failure(f"Milestone creation failed: {response.status_code}")
-                print(f"❌ Milestone creation failed: {response.status_code}")
-                print(f"Response body: {response.text}")
+                debug_print(f"❌ Milestone creation failed: {response.status_code}")
+                debug_print(f"Response body: {response.text}")
                 return None
                 
     except Exception as e:
-        print(f"Exception in create_milestone: {e}")
+        debug_print(f"Exception in create_milestone: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -506,7 +509,7 @@ def create_task(client, project_id, phase_id, milestone_id, task_name_base="Load
             'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
         }
         
-        print(f"Creating task '{task_name}' under milestone {milestone_id}")
+        debug_print(f"Creating task '{task_name}' under milestone {milestone_id}")
         
         with client.post(
             task_url,
@@ -525,41 +528,45 @@ def create_task(client, project_id, phase_id, milestone_id, task_name_base="Load
                         # Extract task ID from response using the helper function
                         task_id = extract_task_id_from_response(response.text)
                         if task_id:
-                            print(f"Successfully created task '{task_name}' with ID: {task_id}")
+                            debug_print(f"Successfully created task '{task_name}' with ID: {task_id}")
                             
                             return {
                                 'id': task_id,
                                 'name': task_name,
-                                'milestone_id': milestone_id
+                                'milestone_id': milestone_id,
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                         else:
-                            print(f"⚠️ Task created but couldn't extract ID from response")
+                            debug_print(f"⚠️ Task created but couldn't extract ID from response")
                             return {
                                 'id': 'unknown',
                                 'name': task_name,
-                                'milestone_id': milestone_id
+                                'milestone_id': milestone_id,
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                     else:
-                        print(f"⚠️ Unexpected task creation response: {response.text[:100]}")
+                        debug_print(f"⚠️ Unexpected task creation response: {response.text[:100]}")
                         return None
                         
                 except Exception as e:
-                    print(f"⚠️ Error parsing task creation response: {e}")
+                    debug_print(f"⚠️ Error parsing task creation response: {e}")
                     return None
                     
             else:
                 response.failure(f"Failed to create task: {response.status_code} - {response.text[:200]}")
-                print(f"❌ Failed to create task: {response.status_code} - {response.text[:100]}")
+                debug_print(f"❌ Failed to create task: {response.status_code} - {response.text[:100]}")
                 return None
                 
     except Exception as e:
-        print(f"Exception in create_task: {e}")
+        debug_print(f"Exception in create_task: {e}")
         import traceback
         traceback.print_exc()
         return None
 
 
-def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_base="LoadTestSubtask", task_suffix=""):
+def create_subtask(client, project_id, phase_id, milestone_id, parent_task_id, subtask_name_base="LoadTestSubtask", task_suffix=""):
     """
     Create a single subtask under a parent task
     
@@ -567,12 +574,13 @@ def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_ba
         client: Locust HTTP client
         project_id: UUID of the project
         phase_id: UUID of the phase
+        milestone_id: UUID of the milestone
         parent_task_id: UUID of the parent task to create the subtask under
         subtask_name_base: Base name for the subtask (will have timestamp and ID appended)
         task_suffix: Optional suffix to add to the subtask name
         
     Returns:
-        dict: {'id': subtask_id, 'name': subtask_name, 'parent_task_id': parent_task_id} or None if creation failed
+        dict: {'id': subtask_id, 'name': subtask_name, 'parent_task_id': parent_task_id, 'milestone_id': milestone_id, 'phase_id': phase_id, 'project_id': project_id} or None if creation failed
     """
     try:
         # Create a unique subtask name
@@ -602,7 +610,7 @@ def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_ba
             'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%22(protected)%22%2C%7B%22children%22%3A%5B%22project%22%2C%7B%22children%22%3A%5B%5B%22projectId%22%2C%22' + project_id + '%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22plan%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fproject%2F' + project_id + '%2Fplan%22%2C%22refresh%22%5D%7D%5D%7D%5D%7D%5D%2C%22navigation%22%3A%5B%22__DEFAULT__%22%2C%7B%7D%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
         }
         
-        print(f"Creating subtask '{subtask_name}' under parent task {parent_task_id}")
+        debug_print(f"Creating subtask '{subtask_name}' under parent task {parent_task_id}")
         
         with client.post(
             subtask_url,
@@ -621,136 +629,78 @@ def create_subtask(client, project_id, phase_id, parent_task_id, subtask_name_ba
                         # Extract subtask ID from response using the helper function
                         subtask_id = extract_subtask_id_from_response(response.text)
                         if subtask_id:
-                            print(f"Successfully created subtask '{subtask_name}' with ID: {subtask_id}")
+                            debug_print(f"Successfully created subtask '{subtask_name}' with ID: {subtask_id}")
                             
                             return {
                                 'id': subtask_id,
                                 'name': subtask_name,
-                                'parent_task_id': parent_task_id
+                                'parent_task_id': parent_task_id,
+                                'milestone_id': milestone_id,
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                         else:
-                            print(f"⚠️ Subtask created but couldn't extract ID from response")
+                            debug_print(f"⚠️ Subtask created but couldn't extract ID from response")
                             return {
                                 'id': 'unknown',
                                 'name': subtask_name,
-                                'parent_task_id': parent_task_id
+                                'parent_task_id': parent_task_id,
+                                'milestone_id': milestone_id,
+                                'phase_id': phase_id,
+                                'project_id': project_id
                             }
                     else:
-                        print(f"⚠️ Unexpected subtask creation response: {response.text[:100]}")
+                        debug_print(f"⚠️ Unexpected subtask creation response: {response.text[:100]}")
                         return None
                         
                 except Exception as e:
-                    print(f"⚠️ Error parsing subtask creation response: {e}")
+                    debug_print(f"⚠️ Error parsing subtask creation response: {e}")
                     return None
                     
             else:
                 response.failure(f"Failed to create subtask: {response.status_code} - {response.text[:200]}")
-                print(f"❌ Failed to create subtask: {response.status_code} - {response.text[:100]}")
+                debug_print(f"❌ Failed to create subtask: {response.status_code} - {response.text[:100]}")
                 return None
                 
     except Exception as e:
-        print(f"Exception in create_subtask: {e}")
+        debug_print(f"Exception in create_subtask: {e}")
         import traceback
         traceback.print_exc()
         return None
 
 
-def create_multiple_tasks(client, project_id, phase_id, milestone_id, milestone_name, 
-                         task_name_base="LoadTestTask", min_tasks=1, max_tasks=10):
+
+
+def create_test_project_with_fallback(client, project_name_txt, fallback_project_id):
     """
-    Create multiple random tasks under a milestone
+    Create a new test project with fallback handling
     
     Args:
         client: Locust HTTP client
-        project_id: UUID of the project
-        phase_id: UUID of the phase
-        milestone_id: UUID of the milestone to create tasks under
-        milestone_name: Name of the milestone (for logging)
-        task_name_base: Base name for the tasks
-        min_tasks: Minimum number of tasks to create
-        max_tasks: Maximum number of tasks to create
+        project_name_txt: Base name for the project
+        fallback_project_id: Project ID to use if creation fails
         
     Returns:
-        list: List of created task dictionaries
+        tuple: (project_info, determined_project_id) where project_info is the created project dict or None
     """
-    # Create random number of tasks
-    num_tasks = random.randint(min_tasks, max_tasks)
-    print(f"Creating {num_tasks} tasks for milestone '{milestone_name}'")
-    
-    created_tasks = []
-    
-    for i in range(num_tasks):
-        task_suffix = f"-{i+1}" if num_tasks > 1 else ""
+    try:
+        project_info = create_project(client, project_name_txt)
         
-        task_info = create_task(
-            client=client,
-            project_id=project_id,
-            phase_id=phase_id,
-            milestone_id=milestone_id,
-            task_name_base=task_name_base,
-            task_suffix=task_suffix
-        )
-        
-        if task_info:
-            created_tasks.append(task_info)
-            print(f"  Successfully created task {i+1}/{num_tasks}: '{task_info['name']}'")
+        if project_info:
+            # Project creation successful
+            determined_project_id = project_info['id']
+            debug_print(f"Set test_project_id to: {project_info['id']}")
+            debug_print(f"Tracked project for cleanup: {project_info['id']} ({project_info['name']})")
+            return project_info, determined_project_id
         else:
-            print(f"  ❌ Failed to create task {i+1}/{num_tasks}")
-            
-        # Small delay between tasks to avoid overwhelming the server
-        time.sleep(0.1)
-    
-    print(f"Task batch complete: Created {len(created_tasks)}/{num_tasks} tasks for milestone '{milestone_name}'")
-    return created_tasks
-
-
-def create_multiple_subtasks(client, project_id, phase_id, parent_task_id, parent_task_name, 
-                            subtask_name_base="LoadTestSubtask", min_subtasks=1, max_subtasks=5):
-    """
-    Create multiple random subtasks under a parent task
-    
-    Args:
-        client: Locust HTTP client
-        project_id: UUID of the project
-        phase_id: UUID of the phase
-        parent_task_id: UUID of the parent task to create subtasks under
-        parent_task_name: Name of the parent task (for logging)
-        subtask_name_base: Base name for the subtasks
-        min_subtasks: Minimum number of subtasks to create
-        max_subtasks: Maximum number of subtasks to create
-        
-    Returns:
-        list: List of created subtask dictionaries
-    """
-    # Create random number of subtasks
-    num_subtasks = random.randint(min_subtasks, max_subtasks)
-    print(f"Creating {num_subtasks} subtasks for task '{parent_task_name}'")
-    
-    created_subtasks = []
-    
-    for i in range(num_subtasks):
-        subtask_suffix = f"-{i+1}" if num_subtasks > 1 else ""
-        
-        subtask_info = create_subtask(
-            client=client,
-            project_id=project_id,
-            phase_id=phase_id,
-            parent_task_id=parent_task_id,
-            subtask_name_base=subtask_name_base,
-            task_suffix=subtask_suffix
-        )
-        
-        if subtask_info:
-            created_subtasks.append(subtask_info)
-            print(f"  Successfully created subtask {i+1}/{num_subtasks}: '{subtask_info['name']}'")
-        else:
-            print(f"  ❌ Failed to create subtask {i+1}/{num_subtasks}")
-            
-        # Small delay between subtasks to avoid overwhelming the server
-        time.sleep(0.1)
-    
-    print(f"Subtask batch complete: Created {len(created_subtasks)}/{num_subtasks} subtasks for task '{parent_task_name}'")
-    return created_subtasks
+            debug_print(f"⚠️ Project creation failed, using fallback project ID")
+            return None, fallback_project_id
+                
+    except Exception as e:
+        debug_print(f"💥 Exception in create_test_project_with_fallback: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, fallback_project_id
 
 
 # Stress testing variants (simplified versions for rapid creation)
@@ -779,58 +729,6 @@ def create_stress_task(client, project_id, phase_id, milestone_id, task_name_bas
     return create_task(client, project_id, phase_id, milestone_id, task_name_base, task_suffix)
 
 
-# Utility functions for task updates (placeholder - requires HAR analysis)
-def update_task(client, project_id, task_id, updates):
-    """
-    Update an existing task with new properties
-    
-    Args:
-        client: Locust HTTP client
-        project_id: UUID of the project
-        task_id: UUID of the task to update
-        updates: Dictionary of updates to apply
-        
-    Returns:
-        bool: True if successful, False otherwise
-        
-    Note: This is a placeholder - requires task update HAR file analysis for implementation
-    """
-    print(f"Updating task {task_id[:8]}...")
-    
-    # TODO: Implement with actual HAR file analysis
-    # For now, this is a placeholder showing the structure
-    
-    if 'assignee' in updates:
-        print(f"     • Assignee: {updates['assignee']}")
-    if 'status' in updates:
-        print(f"     • Status: {updates['status']}")
-    if 'estimated_hours' in updates:
-        print(f"     • Estimated: {updates['estimated_hours']}h")
-    if 'due_date' in updates:
-        print(f"     • Due: {updates['due_date']}")
-    if 'priority' in updates:
-        print(f"     • Priority: {updates['priority']}")
-    
-    print(f"     Task update simulated (need HAR file for real API)")
-    return True  # Simulated success
 
 
-def generate_task_updates():
-    """Generate random task updates for testing"""
-    assignees = [
-        "John Smith", "Sarah Johnson", "Mike Chen", "Lisa Rodriguez", 
-        "David Kim", "Emily Brown", "Alex Taylor", "Jennifer Wilson"
-    ]
-    
-    statuses = ["To Do", "In Progress", "Review", "Done", "Blocked"]
-    priorities = ["Low", "Medium", "High", "Critical"]
-    
-    return {
-        "assignee": random.choice(assignees),
-        "status": random.choice(statuses),
-        "estimated_hours": random.randint(1, 40),
-        "start_date": (datetime.now() + timedelta(days=random.randint(0, 14))).strftime("%Y-%m-%d"),
-        "due_date": (datetime.now() + timedelta(days=random.randint(15, 45))).strftime("%Y-%m-%d"),
-        "progress": random.randint(0, 100),
-        "priority": random.choice(priorities)
-    }
+
