@@ -76,16 +76,16 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         debug_print(f"🔍 Status mapping debug: {status_mapping}")
         return False
     
-    print(f"[UPDATE] Found status UUID: {status_id[:8]}... for '{status_name}'")
+    debug_print(f"[UPDATE] Found status UUID: {status_id[:8]}... for '{status_name}'")
     debug_print(f"🔍 Using status UUID: {status_id} for '{status_name}'")
     
     try:
-        print(f"[UPDATE] Importing update_task_status_api from view module...")
+        debug_print(f"[UPDATE] Importing update_task_status_api from view module...")
         
         # Import view function (avoiding circular imports)
         from .view import update_task_status_api
         
-        print(f"[UPDATE] Calling update_task_status_api...")
+        debug_print(f"[UPDATE] Calling update_task_status_api...")
         debug_print(f"CALLING update_task_status_api...")
         
         # Use view.py function to make the API call
@@ -93,8 +93,8 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
             client, project_id, phase_id, task_id, status_id, explanation
         )
         
-        print(f"[UPDATE] API call completed - Success: {success}, Status: {status_code}")
-        print(f"[UPDATE] Response preview: {response_text[:500] if response_text else 'NO_RESPONSE'}...")
+        debug_print(f"[UPDATE] API call completed - Success: {success}, Status: {status_code}")
+        debug_print(f"[UPDATE] Response preview: {response_text[:500] if response_text else 'NO_RESPONSE'}...")
         
         debug_print(f"🔍 API call returned:")
         debug_print(f"   - Success: {success}")
@@ -103,7 +103,7 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         debug_print(f"   - Response Preview: {response_text[:300] if response_text else 'NO_RESPONSE'}")
         
         if success:
-            print(f"[UPDATE] ✅ Successfully updated task status to '{status_name}'")
+            debug_print(f"[UPDATE] ✅ Successfully updated task status to '{status_name}'")
             
             try:
                 # Parse response for detailed analysis
@@ -128,8 +128,13 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
                                 debug_print(f"❌ API returned error: {parsed_data['error']}")
                                 return False
                             
-                            # Check response status
-                            response_info = parsed_data.get('response', {}).get('info', {})
+                            # Check response status - handle null response field
+                            response_data = parsed_data.get('response')
+                            if response_data is None:
+                                debug_print(f"⚠️ Response field is null, treating as error")
+                                return False
+                            
+                            response_info = response_data.get('info', {})
                             response_status = response_info.get('status')
                             response_message = response_info.get('message', '')
                             
@@ -184,8 +189,218 @@ def update_task_status(client, project_id, phase_id, task_id, status_name, expla
         traceback.print_exc()
         return False
     finally:
-        print(f"[UPDATE] Completed update_task_status for task: {task_id[:8]}...")
+        debug_print(f"[UPDATE] Completed update_task_status for task: {task_id[:8]}...")
         debug_print(f"🔍 TASK STATUS UPDATE DEBUG END")
+        debug_print(f"")  # Add blank line for readability
+
+
+def update_task_estimated_hours(client, project_id, phase_id, task_id, estimated_hours):
+    """
+    Update task estimated hours using the project plan API
+    
+    Args:
+        client: Locust HTTP client
+        project_id: UUID of the project
+        phase_id: UUID of the phase (for URL parameters)
+        task_id: UUID of the task to update
+        estimated_hours: Number of estimated hours to set
+        
+    Returns:
+        bool: True if successful, False otherwise
+        
+    Based on TaskUpdateEstHours.har analysis:
+    - URL: /project/{project_id}/plan?phase={phase_id}&view=board&task-id={task_id}&task-drawer-tab=details
+    - Method: POST
+    - Payload: [{"id": {"uuid": task_id}, "estimatedHours": estimated_hours}]
+    """
+    
+    print(f"[UPDATE] Starting update_task_estimated_hours for task: {task_id[:8]}... -> {estimated_hours}h")
+    
+    debug_print(f"TASK ESTIMATED HOURS UPDATE DEBUG START")
+    debug_print(f"   - Project ID: {project_id}")
+    debug_print(f"   - Phase ID: {phase_id}")
+    debug_print(f"   - Task ID: {task_id}")
+    debug_print(f"   - Estimated Hours: {estimated_hours}")
+    
+    try:
+        print(f"[UPDATE] Preparing API call...")
+        
+        # Based on TaskUpdateEstHours.har analysis
+        update_url = f"/project/{project_id}/plan"
+        params = {
+            'phase': phase_id,
+            'view': 'board',
+            'task-id': task_id,
+            'task-drawer-tab': 'details'
+        }
+        
+        debug_print(f"🔍 Request URL: {update_url}")
+        debug_print(f"🔍 Request Parameters: {params}")
+        
+        # Payload format from HAR file - EXACT match to working request
+        payload_data = [{
+            "id": {"uuid": task_id},
+            "estimatedHours": estimated_hours
+        }]
+        hours_payload = json.dumps(payload_data)
+        
+        debug_print(f"🔍 Request Payload Data: {payload_data}")
+        debug_print(f"🔍 Request Payload JSON: {hours_payload}")
+        
+        # Headers based on TaskUpdateEstHours.har - CRITICAL: Next-Action is required for Next.js Server Actions
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '5c0018c251e1f4df53ca01c659f4c781d2468788',  # From successful HAR - this is crucial!
+            'Origin': 'https://app.staging.guidecx.io',
+        }
+        
+        debug_print(f"🔍 Request Headers: {headers}")
+        
+        # Construct full URL for logging
+        from urllib.parse import urlencode
+        full_url = f"{update_url}?{urlencode(params)}"
+        debug_print(f"🔍 Full Request URL: {full_url}")
+        
+        print(f"[UPDATE] Making POST request...")
+        debug_print(f"🔍 Making POST request...")
+        
+        with client.post(
+            update_url,
+            params=params,
+            data=hours_payload,
+            headers=headers,
+            catch_response=True,
+            name="update_task_estimated_hours"
+        ) as response:
+            debug_print(f"🔍 HTTP Response Status: {response.status_code}")
+            debug_print(f"🔍 Response Headers: {dict(response.headers)}")
+            debug_print(f"🔍 Response Content-Type: {response.headers.get('content-type', 'NOT_SET')}")
+            debug_print(f"🔍 Response Length: {len(response.text)} characters")
+            
+            if response.text:
+                debug_print(f"🔍 Response Text (first 500 chars): {response.text[:500]}")
+                if len(response.text) > 500:
+                    debug_print(f"🔍 Response Text (last 200 chars): ...{response.text[-200:]}")
+            else:
+                debug_print(f"🔍 Response Text: EMPTY")
+            
+            print(f"[UPDATE] API call completed - Status: {response.status_code}")
+            print(f"[UPDATE] Response preview: {response.text[:500] if response.text else 'NO_RESPONSE'}...")
+            
+            # Parse the response to determine actual success based on HAR analysis
+            success = False
+            if response.status_code == 200:
+                try:
+                    # From HAR: successful response contains: {"response":{"info":{"status":0,"message":""}},"error":null}
+                    # Error response contains: {"response":null,"error":{"message":"Failed...","metadata":{...}}}
+                    # The response is in a Next.js Server Action format: "1:{JSON_DATA}"
+                    if response.text and ('"error"' in response.text or ('"response"' in response.text and '"info"' in response.text)):
+                        # Extract JSON from Next.js Server Action format
+                        import re
+                        json_match = re.search(r'\d+:(\{.*\})', response.text)
+                        if json_match:
+                            json_str = json_match.group(1)
+                            parsed_data = json.loads(json_str)
+                            debug_print(f"🔍 Parsed response JSON: {json.dumps(parsed_data, indent=2)}")
+                            
+                            # Check for error in response
+                            if parsed_data.get('error'):
+                                debug_print(f"❌ API returned error: {parsed_data['error']}")
+                                response.failure(f"API error: {parsed_data['error']}")
+                                success = False
+                            else:
+                                # Check the response structure more thoroughly
+                                response_data = parsed_data.get('response')
+                                if response_data is None:
+                                    debug_print(f"⚠️ Response field is null, treating as error")
+                                    response.failure("Response field is null")
+                                    success = False
+                                else:
+                                    info = response_data.get('info', {})
+                                    info_status = info.get('status')
+                                    info_message = info.get('message', '')
+                                    
+                                    debug_print(f"🔍 Response info.status: {info_status}")
+                                    debug_print(f"🔍 Response info.message: '{info_message}'")
+                                    
+                                    # More robust success criteria for estimated hours:
+                                    # 1. info.status must be 0 (no error code)
+                                    # 2. info.message should be empty or not contain error keywords
+                                    # 3. Check for common error patterns in message
+                                    
+                                    error_patterns = ['error', 'failed', 'invalid', 'unauthorized', 'forbidden', 'not found']
+                                    message_has_error = any(pattern in info_message.lower() for pattern in error_patterns)
+                                    
+                                    if info_status == 0 and not message_has_error:
+                                        debug_print(f"✅ Task estimated hours update successful!")
+                                        response.success()
+                                        success = True
+                                    else:
+                                        # Log why it failed
+                                        reasons = []
+                                        if info_status != 0:
+                                            reasons.append(f"info.status={info_status}")
+                                        if message_has_error:
+                                            reasons.append(f"error in message: '{info_message}'")
+                                            
+                                        failure_reason = "; ".join(reasons)
+                                        debug_print(f"❌ Task estimated hours update failed: {failure_reason}")
+                                        debug_print(f"   info.message: '{info_message}'")
+                                        response.failure(f"Estimated hours update failed: {failure_reason}")
+                                        success = False
+                        else:
+                            debug_print(f"⚠️ Could not parse Next.js Server Action response format")
+                            debug_print(f"🔍 Raw response: {response.text}")
+                            response.failure("Could not parse response format")
+                            success = False
+                    else:
+                        debug_print(f"⚠️ Response missing expected fields ('response' and 'info')")
+                        debug_print(f"🔍 Raw response: {response.text}")
+                        response.failure("Response missing expected fields")
+                        success = False
+                        
+                except json.JSONDecodeError as je:
+                    debug_print(f"❌ JSON decode error: {je}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"JSON decode error: {je}")
+                    success = False
+                except Exception as e:
+                    debug_print(f"❌ Error parsing response: {e}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"Response parsing error: {e}")
+                    success = False
+            else:
+                debug_print(f"❌ HTTP request failed with status {response.status_code}")
+                response.failure(f"HTTP {response.status_code}")
+                success = False
+            
+            if success:
+                print(f"[UPDATE] ✅ Successfully updated task estimated hours to {estimated_hours}h")
+                return True
+            elif response.status_code == 401:
+                print(f"[UPDATE] ❌ Authentication failed for estimated hours update")
+                debug_print(f"❌ Authentication failed for estimated hours update")
+                return False
+            elif response.status_code == 403:
+                print(f"[UPDATE] ❌ Access denied for estimated hours update")
+                debug_print(f"❌ Access denied for estimated hours update")
+                return False
+            else:
+                print(f"[UPDATE] ❌ Estimated hours update failed with status code: {response.status_code}")
+                debug_print(f"❌ Estimated hours update failed with status code: {response.status_code}")
+                debug_print(f"🔍 Error response: {response.text}")
+                return False
+                
+    except Exception as e:
+        print(f"[UPDATE] ❌ Exception in update_task_estimated_hours: {e}")
+        debug_print(f"💥 Exception in update_task_estimated_hours: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        print(f"[UPDATE] Completed update_task_estimated_hours for task: {task_id[:8]}...")
+        debug_print(f"🔍 TASK ESTIMATED HOURS UPDATE DEBUG END")
         debug_print(f"")  # Add blank line for readability
 
 

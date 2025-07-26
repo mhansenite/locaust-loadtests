@@ -34,6 +34,7 @@ from common.create import (
 from common.update import (
     update_task,
     update_task_status,
+    update_task_estimated_hours,
     generate_task_updates
 )
 from common.extractdata import (
@@ -600,6 +601,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         task_id = task_info['id']
         task_name = task_info['name']
         milestone_name = task_info.get('milestone_name', 'Unknown')
+        task_phase_id = task_info.get('phase_id', get_random_phase_id(self))  # Extract phase_id for API call
         
         # Always print the selected task name to console (not just debug)
         print(f"UPDATING TASK HOURS: '{task_name}' in milestone '{milestone_name}'")
@@ -623,13 +625,28 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         debug_print(f"Hours update payload: {hours_payload}")
         
-        # TODO: Implement actual API call to project plan endpoint
-        debug_print(f"  ✅ Hours estimate updated for '{task_name}': {estimated_hours}h")
+        debug_print(f"Calling update_task_estimated_hours API...")
         
-        # Always print success to console (not just debug)
-        print(f"SUCCESS: Task '{task_name}' estimated hours updated to {estimated_hours}h")
+        # Call the real API using the implemented function
+        success = update_task_estimated_hours(
+            self.client,
+            self.test_project_id,
+            task_phase_id,  # Use the correct phase_id for this specific task
+            task_id,
+            estimated_hours
+        )
         
-        return True
+        if success:
+            # Always print success to console (not just debug)
+            print(f"SUCCESS: Task '{task_name}' estimated hours updated to {estimated_hours}h")
+        else:
+            # Always print failure to console with failure indicator
+            print(f"❌ FAILED: Could not update task '{task_name}' estimated hours to {estimated_hours}h")
+            debug_print(f"     Check the update_task_estimated_hours function in common/update.py for detailed error logs")
+        
+        debug_print(f"Task estimated hours update operation completed for '{task_name}'")
+        
+        return success
 
     @task(3)  # High frequency - assignment changes are common
     def update_task_assignments(self):
