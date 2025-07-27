@@ -35,6 +35,7 @@ from common.update import (
     update_task,
     update_task_status,
     update_task_estimated_hours,
+    update_task_dates,
     generate_task_updates
 )
 from common.extractdata import (
@@ -561,9 +562,16 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         debug_print(f"  ✅ Time tracking simulated: {hours_worked:.1f}h - '{time_comment}'")
         return True
 
-    @task(3)  # High frequency - date adjustments are very common
+    @task(10)  # High frequency - date adjustments are very common
     def update_task_dates(self):
         """Test updating task start and due dates using project plan API"""
+        # Ensure we have a project to work with (project should be created in on_start)
+        if not self.test_project_id:
+            debug_print(f"⚠️ No project ID available for update_task_dates (skipping task)")
+            return
+        
+        debug_print(f"Starting task dates update operation...")
+        
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
@@ -572,22 +580,41 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         task_id = task_info['id']
         task_name = task_info['name']
+        task_phase_id = task_info.get('phase_id', get_random_phase_id(self))  # Use task's phase or fallback
+        milestone_name = task_info.get('milestone_name', 'Unknown')
+        
+        # Always print the selected task name to console (not just debug)
+        #print(f"UPDATING TASK DATES: '{task_name}' in milestone '{milestone_name}'")
         
         # Generate realistic date updates
         start_date = datetime.now() + timedelta(days=random.randint(0, 7))
         due_date = start_date + timedelta(days=random.randint(7, 30))
         
-        # Based on UpdateTaskDate.har format
-        date_payload = [{
-            "id": {"uuid": task_id},
-            "dueDate": {"seconds": str(int(due_date.timestamp())), "nanos": 0},
-            "startDate": "$undefined"  # From HAR file
-        }]
+        debug_print(f"Generated dates - Start: {start_date.strftime('%Y-%m-%d')}, Due: {due_date.strftime('%Y-%m-%d')}")
         
-        # TODO: Implement actual API call to project plan endpoint
-        debug_print(f"  ✅ Date update simulated for '{task_name}': Due {due_date.strftime('%Y-%m-%d')}")
+        debug_print(f"Calling update_task_dates API...")
         
-        return True
+        # Call the real API using the implemented function
+        success = update_task_dates(
+            self.client,
+            self.test_project_id,
+            task_phase_id,  # Use the correct phase_id for this specific task
+            task_id,
+            start_date,
+            due_date
+        )
+        
+        if success:
+            # Always print success to console (not just debug)
+            print(f"SUCCESS: Task '{task_name}' dates updated - Start: {start_date.strftime('%Y-%m-%d')}, Due: {due_date.strftime('%Y-%m-%d')}")
+        else:
+            # Always print failure to console with failure indicator
+            print(f"❌ FAILED: Could not update task '{task_name}' dates")
+            debug_print(f"     Check the update_task_dates function in common/update.py for detailed error logs")
+        
+        debug_print(f"Task dates update operation completed for '{task_name}'")
+        
+        return success
 
     @task(10)  # High frequency - effort estimation adjustments are common
     def update_task_estimated_hours(self):
@@ -603,14 +630,14 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         milestone_name = task_info.get('milestone_name', 'Unknown')
         task_phase_id = task_info.get('phase_id', get_random_phase_id(self))  # Extract phase_id for API call
         
-        # Always print the selected task name to console (not just debug)
-        print(f"UPDATING TASK HOURS: '{task_name}' in milestone '{milestone_name}'")
+        # # Always print the selected task name to console (not just debug)
+        # print(f"UPDATING TASK HOURS: '{task_name}' in milestone '{milestone_name}'")
         
-        # Enhanced logging for selected task
-        debug_print(f"SELECTED TASK FOR HOURS UPDATE:")
-        debug_print(f"   Task Name: '{task_name}'")
-        debug_print(f"   Task ID: {task_id[:8]}...")
-        debug_print(f"   Milestone: '{milestone_name}'")
+        # # Enhanced logging for selected task
+        # debug_print(f"SELECTED TASK FOR HOURS UPDATE:")
+        # debug_print(f"   Task Name: '{task_name}'")
+        # debug_print(f"   Task ID: {task_id[:8]}...")
+        # debug_print(f"   Milestone: '{milestone_name}'")
         
         # Generate realistic hour estimates
         estimated_hours = random.choice([1, 2, 4, 8, 16, 24, 40])
@@ -641,44 +668,44 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             print(f"SUCCESS: Task '{task_name}' estimated hours updated to {estimated_hours}h")
         else:
             # Always print failure to console with failure indicator
-            print(f"❌ FAILED: Could not update task '{task_name}' estimated hours to {estimated_hours}h")
+            debug_print(f"❌ FAILED: Could not update task '{task_name}' estimated hours to {estimated_hours}h")
             debug_print(f"     Check the update_task_estimated_hours function in common/update.py for detailed error logs")
         
         debug_print(f"Task estimated hours update operation completed for '{task_name}'")
         
         return success
 
-    @task(3)  # High frequency - assignment changes are common
-    def update_task_assignments(self):
-        """Test updating task assignments using project plan API"""
-        # Get a random task (creates one if none exist) with correct associations
-        task_info = get_random_task_info(self)
-        if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot update task assignments")
-            return
+    # @task(3)  # High frequency - assignment changes are common
+    # def update_task_assignments(self):
+    #     """Test updating task assignments using project plan API"""
+    #     # Get a random task (creates one if none exist) with correct associations
+    #     task_info = get_random_task_info(self)
+    #     if not task_info:
+    #         debug_print(f"⚠️ Could not get task info, cannot update task assignments")
+    #         return
         
-        task_id = task_info['id']
-        task_name = task_info['name']
+    #     task_id = task_info['id']
+    #     task_name = task_info['name']
         
-        # Generate realistic assignee options
-        assignees = [
-            "John Smith", "Sarah Johnson", "Mike Chen", "Lisa Rodriguez", 
-            "David Kim", "Emily Brown", "Alex Taylor", "Jennifer Wilson",
-            "Mike Hansen"  # Current user from HAR files
-        ]
+    #     # Generate realistic assignee options
+    #     assignees = [
+    #         "John Smith", "Sarah Johnson", "Mike Chen", "Lisa Rodriguez", 
+    #         "David Kim", "Emily Brown", "Alex Taylor", "Jennifer Wilson",
+    #         "Mike Hansen"  # Current user from HAR files
+    #     ]
         
-        new_assignee = random.choice(assignees)
+    #     new_assignee = random.choice(assignees)
         
-        # Based on TaskUpdateAssigned.har format (need to analyze actual HAR)
-        assignment_payload = [{
-            "id": {"uuid": task_id},
-            "assignedTo": new_assignee  # Format to be confirmed from HAR
-        }]
+    #     # Based on TaskUpdateAssigned.har format (need to analyze actual HAR)
+    #     assignment_payload = [{
+    #         "id": {"uuid": task_id},
+    #         "assignedTo": new_assignee  # Format to be confirmed from HAR
+    #     }]
         
-        # TODO: Implement actual API call based on TaskUpdateAssigned.har
-        debug_print(f"  ✅ Assignment updated for '{task_name}': Assigned to {new_assignee}")
+    #     # TODO: Implement actual API call based on TaskUpdateAssigned.har
+    #     debug_print(f"  ✅ Assignment updated for '{task_name}': Assigned to {new_assignee}")
         
-        return True
+    #     return True
 
     @task(10)  # High frequency - status updates are very common
     def update_task_status(self):

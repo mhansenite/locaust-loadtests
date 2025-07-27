@@ -404,6 +404,239 @@ def update_task_estimated_hours(client, project_id, phase_id, task_id, estimated
         debug_print(f"")  # Add blank line for readability
 
 
+def update_task_dates(client, project_id, phase_id, task_id, start_date=None, due_date=None):
+    """
+    Update task start and due dates using the project plan API
+    
+    Args:
+        client: Locust HTTP client
+        project_id: UUID of the project
+        phase_id: UUID of the phase (for URL parameters)
+        task_id: UUID of the task to update
+        start_date: datetime object for start date, or None to unset
+        due_date: datetime object for due date, or None to unset
+        
+    Returns:
+        bool: True if successful, False otherwise
+        
+    Based on UpdateTaskDate.har analysis:
+    - URL: /project/{project_id}/plan?phase={phase_id}&view=board&task-id={task_id}&task-drawer-tab=details
+    - Method: POST
+    - Payload: [{"id": {"uuid": task_id}, "dueDate": {"seconds": "timestamp", "nanos": 0}, "startDate": "$undefined" or {"seconds": "timestamp", "nanos": 0}}]
+    """
+    
+    print(f"[UPDATE] Starting update_task_dates for task: {task_id[:8]}...")
+    
+    debug_print(f"TASK DATES UPDATE DEBUG START")
+    debug_print(f"   - Project ID: {project_id}")
+    debug_print(f"   - Phase ID: {phase_id}")
+    debug_print(f"   - Task ID: {task_id}")
+    debug_print(f"   - Start Date: {start_date}")
+    debug_print(f"   - Due Date: {due_date}")
+    
+    try:
+        print(f"[UPDATE] Preparing API call...")
+        
+        # Based on UpdateTaskDate.har analysis
+        update_url = f"/project/{project_id}/plan"
+        params = {
+            'phase': phase_id,
+            'view': 'board',
+            'task-id': task_id,
+            'task-drawer-tab': 'details'
+        }
+        
+        debug_print(f"🔍 Request URL: {update_url}")
+        debug_print(f"🔍 Request Parameters: {params}")
+        
+        # Payload format from HAR file - EXACT match to working request
+        payload_data = {
+            "id": {"uuid": task_id}
+        }
+        
+        # Handle due date - convert to seconds timestamp or set to "$undefined"
+        if due_date:
+            due_timestamp = str(int(due_date.timestamp()))
+            payload_data["dueDate"] = {"seconds": due_timestamp, "nanos": 0}
+            debug_print(f"🔍 Due date: {due_date} -> timestamp: {due_timestamp}")
+        else:
+            payload_data["dueDate"] = "$undefined"
+            debug_print(f"🔍 Due date: unset (using $undefined)")
+        
+        # Handle start date - convert to seconds timestamp or set to "$undefined"
+        if start_date:
+            start_timestamp = str(int(start_date.timestamp()))
+            payload_data["startDate"] = {"seconds": start_timestamp, "nanos": 0}
+            debug_print(f"🔍 Start date: {start_date} -> timestamp: {start_timestamp}")
+        else:
+            payload_data["startDate"] = "$undefined"
+            debug_print(f"🔍 Start date: unset (using $undefined)")
+        
+        # Wrap in array as shown in HAR
+        dates_payload = json.dumps([payload_data])
+        
+        debug_print(f"🔍 Request Payload Data: {[payload_data]}")
+        debug_print(f"🔍 Request Payload JSON: {dates_payload}")
+        
+        # Headers based on UpdateTaskDate.har - CRITICAL: Next-Action is required for Next.js Server Actions
+        headers = {
+            'Content-Type': 'text/plain;charset=UTF-8',
+            'Accept': 'text/x-component',
+            'Next-Action': '5268054c851d66d770d67a03d9d7209b7afe9977',  # From UpdateTaskDate.har - different from estimated hours!
+            'Origin': 'https://app.staging.guidecx.io',
+        }
+        
+        debug_print(f"🔍 Request Headers: {headers}")
+        
+        # Construct full URL for logging
+        from urllib.parse import urlencode
+        full_url = f"{update_url}?{urlencode(params)}"
+        debug_print(f"🔍 Full Request URL: {full_url}")
+        
+        print(f"[UPDATE] Making POST request...")
+        debug_print(f"🔍 Making POST request...")
+        
+        with client.post(
+            update_url,
+            params=params,
+            data=dates_payload,
+            headers=headers,
+            catch_response=True,
+            name="update_task_dates"
+        ) as response:
+            debug_print(f"🔍 HTTP Response Status: {response.status_code}")
+            debug_print(f"🔍 Response Headers: {dict(response.headers)}")
+            debug_print(f"🔍 Response Content-Type: {response.headers.get('content-type', 'NOT_SET')}")
+            debug_print(f"🔍 Response Length: {len(response.text)} characters")
+            
+            if response.text:
+                debug_print(f"🔍 Response Text (first 500 chars): {response.text[:500]}")
+                if len(response.text) > 500:
+                    debug_print(f"🔍 Response Text (last 200 chars): ...{response.text[-200:]}")
+            else:
+                debug_print(f"🔍 Response Text: EMPTY")
+            
+            print(f"[UPDATE] API call completed - Status: {response.status_code}")
+            print(f"[UPDATE] Response preview: {response.text[:500] if response.text else 'NO_RESPONSE'}...")
+            
+            # Parse the response to determine actual success based on HAR analysis
+            success = False
+            if response.status_code == 200:
+                try:
+                    # From HAR: successful response contains: {"response":{"info":{"status":0,"message":""}},"error":null}
+                    # Error response contains: {"response":null,"error":{"message":"Failed...","metadata":{...}}}
+                    # The response is in a Next.js Server Action format: "1:{JSON_DATA}"
+                    if response.text and ('"error"' in response.text or ('"response"' in response.text and '"info"' in response.text)):
+                        # Extract JSON from Next.js Server Action format
+                        import re
+                        json_match = re.search(r'\d+:(\{.*\})', response.text)
+                        if json_match:
+                            json_str = json_match.group(1)
+                            parsed_data = json.loads(json_str)
+                            debug_print(f"🔍 Parsed response JSON: {json.dumps(parsed_data, indent=2)}")
+                            
+                            # Check for error in response
+                            if parsed_data.get('error'):
+                                debug_print(f"❌ API returned error: {parsed_data['error']}")
+                                response.failure(f"API error: {parsed_data['error']}")
+                                success = False
+                            else:
+                                # Check the response structure more thoroughly
+                                response_data = parsed_data.get('response')
+                                if response_data is None:
+                                    debug_print(f"⚠️ Response field is null, treating as error")
+                                    response.failure("Response field is null")
+                                    success = False
+                                else:
+                                    info = response_data.get('info', {})
+                                    info_status = info.get('status')
+                                    info_message = info.get('message', '')
+                                    
+                                    debug_print(f"🔍 Response info.status: {info_status}")
+                                    debug_print(f"🔍 Response info.message: '{info_message}'")
+                                    
+                                    # More robust success criteria for date updates:
+                                    # 1. info.status must be 0 (no error code)
+                                    # 2. info.message should be empty or not contain error keywords
+                                    # 3. Check for common error patterns in message
+                                    
+                                    error_patterns = ['error', 'failed', 'invalid', 'unauthorized', 'forbidden', 'not found']
+                                    message_has_error = any(pattern in info_message.lower() for pattern in error_patterns)
+                                    
+                                    if info_status == 0 and not message_has_error:
+                                        debug_print(f"✅ Task dates update successful!")
+                                        response.success()
+                                        success = True
+                                    else:
+                                        # Log why it failed
+                                        reasons = []
+                                        if info_status != 0:
+                                            reasons.append(f"info.status={info_status}")
+                                        if message_has_error:
+                                            reasons.append(f"error in message: '{info_message}'")
+                                            
+                                        failure_reason = "; ".join(reasons)
+                                        debug_print(f"❌ Task dates update failed: {failure_reason}")
+                                        debug_print(f"   info.message: '{info_message}'")
+                                        response.failure(f"Dates update failed: {failure_reason}")
+                                        success = False
+                        else:
+                            debug_print(f"⚠️ Could not parse Next.js Server Action response format")
+                            debug_print(f"🔍 Raw response: {response.text}")
+                            response.failure("Could not parse response format")
+                            success = False
+                    else:
+                        debug_print(f"⚠️ Response missing expected fields ('response' and 'info')")
+                        debug_print(f"🔍 Raw response: {response.text}")
+                        response.failure("Response missing expected fields")
+                        success = False
+                        
+                except json.JSONDecodeError as je:
+                    debug_print(f"❌ JSON decode error: {je}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"JSON decode error: {je}")
+                    success = False
+                except Exception as e:
+                    debug_print(f"❌ Error parsing response: {e}")
+                    debug_print(f"🔍 Raw response: {response.text}")
+                    response.failure(f"Response parsing error: {e}")
+                    success = False
+            else:
+                debug_print(f"❌ HTTP request failed with status {response.status_code}")
+                response.failure(f"HTTP {response.status_code}")
+                success = False
+            
+            if success:
+                start_str = start_date.strftime('%Y-%m-%d') if start_date else 'unset'
+                due_str = due_date.strftime('%Y-%m-%d') if due_date else 'unset'
+                print(f"[UPDATE] ✅ Successfully updated task dates - Start: {start_str}, Due: {due_str}")
+                return True
+            elif response.status_code == 401:
+                print(f"[UPDATE] ❌ Authentication failed for dates update")
+                debug_print(f"❌ Authentication failed for dates update")
+                return False
+            elif response.status_code == 403:
+                print(f"[UPDATE] ❌ Access denied for dates update")
+                debug_print(f"❌ Access denied for dates update")
+                return False
+            else:
+                print(f"[UPDATE] ❌ Dates update failed with status code: {response.status_code}")
+                debug_print(f"❌ Dates update failed with status code: {response.status_code}")
+                debug_print(f"🔍 Error response: {response.text}")
+                return False
+                
+    except Exception as e:
+        print(f"[UPDATE] ❌ Exception in update_task_dates: {e}")
+        debug_print(f"💥 Exception in update_task_dates: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    finally:
+        print(f"[UPDATE] Completed update_task_dates for task: {task_id[:8]}...")
+        debug_print(f"🔍 TASK DATES UPDATE DEBUG END")
+        debug_print(f"")  # Add blank line for readability
+
+
 def update_task(client, project_id, task_id, updates):
     """
     Update an existing task with new properties (placeholder for future implementations)
