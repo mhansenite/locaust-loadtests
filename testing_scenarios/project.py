@@ -222,10 +222,10 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                                 catch_response=True, name=call_name) as response:
                 if response.status_code in [200, 201]:
                     response.success()
-                    debug_print(f"✅ gRPC call successful: {method_name}")
+                    debug_print(f"gRPC call successful: {method_name}")
                 else:
                     response.failure(f"gRPC call failed: {response.status_code}")
-                    debug_print(f"⚠️ gRPC call failed: {method_name} - {response.status_code}")
+                    debug_print(f"gRPC call failed: {method_name} - {response.status_code}")
         except Exception as e:
             debug_print(f"gRPC call error for {method_name}: {e}")
 
@@ -256,7 +256,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test creating a new phase in the project using the common create_phase function"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for create_test_phase (skipping task)")
+            debug_print(f"No project ID available for create_test_phase (skipping task)")
             return
         
         try:
@@ -279,7 +279,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 debug_print(f"❌ Phase creation failed")
                     
         except Exception as e:
-            debug_print(f"💥 Exception in create_test_phase: {e}")
+            debug_print(f"Exception in create_test_phase: {e}")
             import traceback
             traceback.print_exc()
 
@@ -288,7 +288,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test creating a milestone in the current phase"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for create_milestone (skipping task)")
+            debug_print(f"No project ID available for create_milestone (skipping task)")
             return
         
         # Smart phase creation: Create more phases if we have too many milestones per phase
@@ -316,7 +316,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         debug_print(f"Selected phase: '{selected_phase_name}' ({selected_phase_id})")
         
         # Create milestone using the common function
-        debug_print(f"🔍 CALLING create_milestone with:")
+        debug_print(f"CALLING create_milestone with:")
         debug_print(f"   - project_id: {self.test_project_id}")
         debug_print(f"   - selected_phase_id: {selected_phase_id}")
         debug_print(f"   - milestone_name_base: {self.TEST_MILESTONE_NAME}")
@@ -328,12 +328,12 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             self.TEST_MILESTONE_NAME
         )
         
-        debug_print(f"🔍 create_milestone returned: {milestone_info}")
+        debug_print(f"create_milestone returned: {milestone_info}")
         
         if milestone_info:
             # Store the created milestone for tracking
             self.created_milestones.append(milestone_info)
-            debug_print(f"✅ Successfully created milestone '{milestone_info['name']}' with ID: {milestone_info['id']}")
+            debug_print(f"Successfully created milestone '{milestone_info['name']}' with ID: {milestone_info['id']}")
         else:
             debug_print(f"❌ Failed to create milestone - check debug logs above for details")
 
@@ -342,13 +342,13 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test creating a single task under a milestone"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for create_task (skipping task)")
+            debug_print(f"No project ID available for create_task (skipping task)")
             return
 
         # Get a random milestone (creates one if none exist) with correct phase_id
         milestone_info = get_random_milestone_info(self)
         if not milestone_info:
-            debug_print(f"⚠️ Could not get milestone info, cannot create task")
+            debug_print(f"Could not get milestone info, cannot create task")
             return
         
         milestone_id = milestone_info['id']
@@ -370,7 +370,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             # Add milestone_name to task and track it
             task_info['milestone_name'] = milestone_name  # For logging purposes
             self.created_tasks.append(task_info)
-            debug_print(f"✅ Successfully created task: '{task_info['name']}' in milestone '{milestone_name}'")
+            debug_print(f"Successfully created task: '{task_info['name']}' in milestone '{milestone_name}'")
         else:
             debug_print(f"❌ Failed to create task in milestone '{milestone_name}'")
 
@@ -379,13 +379,13 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test creating a single subtask under a task"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for create_subtask (skipping task)")
+            debug_print(f"No project ID available for create_subtask (skipping task)")
             return
 
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot create subtask")
+            debug_print(f"Could not get task info, cannot create subtask")
             return
         
         task_id = task_info['id']
@@ -411,7 +411,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             subtask_info['parent_task_name'] = task_name  # For logging purposes
             subtask_info['milestone_name'] = milestone_name  # Inherit from parent
             self.created_tasks.append(subtask_info)  # Track subtasks with tasks for updates
-            debug_print(f"✅ Successfully created subtask: '{subtask_info['name']}' under task '{task_name}'")
+            debug_print(f"Successfully created subtask: '{subtask_info['name']}' under task '{task_name}'")
         else:
             debug_print(f"❌ Failed to create subtask under task '{task_name}'")
 
@@ -424,7 +424,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test viewing the project plan page with all required API calls"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for view_project_plan (skipping task)")
+            debug_print(f"No project ID available for view_project_plan (skipping task)")
             return
         
         # Get a random phase ID for viewing (creates one if none exist)
@@ -452,7 +452,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
                 debug_print(f"❌ Access denied for project plan")
             else:
                 response.failure(f"Unexpected status code: {response.status_code}")
-                debug_print(f"⚠️ Unexpected response: {response.status_code} for {url}")
+                debug_print(f"Unexpected response: {response.status_code} for {url}")
                 return
         
         # 2. Session validation calls (multiple as seen in HAR)
@@ -496,13 +496,13 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             with self.client.get(analytics_url, headers=headers, catch_response=True, name="project_analytics_query") as response:
                 if response.status_code == 200:
                     response.success()
-                    debug_print(f"✅ Successfully fetched project analytics")
+                    debug_print(f"Successfully fetched project analytics")
                 elif response.status_code == 401:
                     response.failure("Analytics query unauthorized")
                     debug_print(f"❌ Analytics query unauthorized - may need proper token")
                 else:
                     response.failure(f"Analytics query failed: {response.status_code}")
-                    debug_print(f"⚠️ Analytics query failed: {response.status_code}")
+                    debug_print(f"Analytics query failed: {response.status_code}")
         except Exception as e:
             debug_print(f"Analytics query error: {e}")
         
@@ -533,7 +533,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
             else:
                 response.failure(f"Unexpected favicon response: {response.status_code}")
         
-        debug_print(f"✅ Complete project plan view simulation with {self.test_project_id}")
+        debug_print(f"Complete project plan view simulation with {self.test_project_id}")
 
     # =============================================================================
     # UPDATE TASKS (ordered hierarchically: phase → milestone → task → subtask)
@@ -545,7 +545,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot add time tracking")
+            debug_print(f"Could not get task info, cannot add time tracking")
             return
         
         task_id = task_info['id']
@@ -559,7 +559,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         # Based on TaskUpdarteTimeTracking.har - this uses gRPC-web format
         # For now, simulate the call (would need full gRPC implementation)
-        debug_print(f"  ✅ Time tracking simulated: {hours_worked:.1f}h - '{time_comment}'")
+        debug_print(f"  Time tracking simulated: {hours_worked:.1f}h - '{time_comment}'")
         return True
 
     @task(10)  # High frequency - date adjustments are very common
@@ -567,7 +567,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         """Test updating task start and due dates using project plan API"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for update_task_dates (skipping task)")
+            debug_print(f"No project ID available for update_task_dates (skipping task)")
             return
         
         debug_print(f"Starting task dates update operation...")
@@ -575,7 +575,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot update task dates")
+            debug_print(f"Could not get task info, cannot update task dates")
             return
         
         task_id = task_info['id']
@@ -622,7 +622,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot update estimated hours")
+            debug_print(f"Could not get task info, cannot update estimated hours")
             return
         
         task_id = task_info['id']
@@ -707,12 +707,12 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
     #     return True
 
-    @task(10)  # High frequency - status updates are very common
+    @task(15)  # High frequency - status updates are very common
     def update_task_status(self):
         """Test updating task status using project plan API with dynamic status extraction"""
         # Ensure we have a project to work with (project should be created in on_start)
         if not self.test_project_id:
-            debug_print(f"⚠️ No project ID available for update_task_status (skipping task)")
+            debug_print(f"No project ID available for update_task_status (skipping task)")
             return
         
         debug_print(f"Starting task status update operation...")
@@ -720,7 +720,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         # Get a random task (creates one if none exist) with correct associations
         task_info = get_random_task_info(self)
         if not task_info:
-            debug_print(f"⚠️ Could not get task info, cannot update task status")
+            debug_print(f"Could not get task info, cannot update task status")
             return
         
         task_id = task_info['id']
@@ -751,7 +751,7 @@ class ProjectPhaseMilestoneLoadTest(AuthenticatedUser):
         
         # Fallback if API call failed
         if not available_statuses:
-            debug_print(f"⚠️ Could not fetch statuses from API, using fallback statuses")
+            debug_print(f"Could not fetch statuses from API, using fallback statuses")
             available_statuses = get_fallback_task_statuses()
         
         # Get list of available status names for random selection

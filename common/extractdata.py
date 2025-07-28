@@ -33,7 +33,7 @@ def extract_project_id_from_response(response_text):
                             debug_print(f"Extracted project ID from response: {project_id}")
                             return project_id
                 except (json.JSONDecodeError, KeyError) as e:
-                    debug_print(f"⚠️ Could not parse project response line: {e}")
+                    debug_print(f"Could not parse project response line: {e}")
                     continue
         
         # Fallback: try to find any UUID pattern in the response that looks like a project ID
@@ -47,7 +47,7 @@ def extract_project_id_from_response(response_text):
             return project_id
                     
     except Exception as e:
-        debug_print(f"⚠️ Error extracting project ID: {e}")
+        debug_print(f"Error extracting project ID: {e}")
         
     return None
 
@@ -88,7 +88,7 @@ def extract_phase_id_from_response(response_text):
                     # Fallback: Check if this is a templates response (old behavior)
                     elif 'response' in data and 'templates' in data['response']:
                         templates = data['response']['templates']
-                        debug_print(f"⚠️ PHASE EXTRACT DEBUG: Got templates response instead of phase creation - this suggests wrong API or headers")
+                        debug_print(f"PHASE EXTRACT DEBUG: Got templates response instead of phase creation - this suggests wrong API or headers")
                         debug_print(f"PHASE EXTRACT DEBUG: Found {len(templates)} templates in response")
                         
                         # Look for the most recently created template (our new phase)
